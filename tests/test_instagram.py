@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.instagram import POST_URL
+from harvest.instagram import POST_URL, audio_metadata_from_info
 
 
 class InstagramAdapterTests(unittest.TestCase):
@@ -18,3 +18,30 @@ class InstagramAdapterTests(unittest.TestCase):
         self.assertIsNone(POST_URL.fullmatch("https://www.instagram.com/saved/all-posts/"))
         self.assertIsNone(POST_URL.fullmatch("https://example.com/p/DcSvEX4IWu7/"))
 
+    def test_preserves_named_song_metadata(self) -> None:
+        self.assertEqual(
+            audio_metadata_from_info({"track": "Roads", "artist": "Portishead"}),
+            {
+                "label": "Roads",
+                "title": "Roads",
+                "artist": "Portishead",
+                "is_original": False,
+            },
+        )
+
+    def test_original_audio_is_a_label_not_an_invented_song(self) -> None:
+        self.assertEqual(
+            audio_metadata_from_info({"audio_label": "Original audio"}),
+            {
+                "label": "Original audio",
+                "title": None,
+                "artist": None,
+                "is_original": True,
+            },
+        )
+
+    def test_missing_audio_metadata_has_predictable_shape(self) -> None:
+        self.assertEqual(
+            audio_metadata_from_info({}),
+            {"label": None, "title": None, "artist": None, "is_original": False},
+        )

@@ -87,6 +87,7 @@ def harvest_instagram_url(url: str, browser_profile: Path, archive_root: Path) -
                 "extractor": info.get("extractor"),
                 "webpage_url": info.get("webpage_url"),
                 "display_id": info.get("display_id"),
+                "audio": audio_metadata_from_info(info),
             },
         )
         return _build_bundle(item, media_files, archive_root)
@@ -97,6 +98,27 @@ def _read_info(paths: list[Path]) -> dict[str, Any]:
         return {}
     with paths[0].open(encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def audio_metadata_from_info(info: dict[str, Any]) -> dict[str, Any]:
+    """Preserve platform-provided music attribution without guessing."""
+
+    nested = info.get("music_metadata")
+    music = nested if isinstance(nested, dict) else {}
+    title = _first_text(info.get("track"), info.get("audio_title"), music.get("track"), music.get("title"))
+    artist = _first_text(info.get("artist"), info.get("audio_artist"), music.get("artist"))
+    label = _first_text(info.get("audio_label"), music.get("label"), title)
+    original = bool(label and label.casefold().strip() in {"original audio", "original sound"})
+    return {
+        "label": label,
+        "title": None if original else title,
+        "artist": None if original else artist,
+        "is_original": original,
+    }
+
+
+def _first_text(*values: Any) -> str | None:
+    return next((value.strip() for value in values if isinstance(value, str) and value.strip()), None)
 
 
 def _media_files(staging: Path) -> list[Path]:

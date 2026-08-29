@@ -44,6 +44,19 @@ Separate discovery from acquisition:
    indicating authentication failure stops the run. V0 does not retry auth
    failures or attempt to automate login/challenges.
 
+## Audio attribution
+
+For each new harvest, `metadata.json` includes a predictable
+`item.source_metadata.audio` object with `label`, `title`, `artist`, and
+`is_original` fields. Values come only from metadata supplied by Instagram and
+the downloader; harvestrr does not infer a song from the waveform. A platform
+label such as `Original audio` is preserved while its song title and artist stay
+null. If Instagram supplies no attribution, the nullable fields remain null.
+
+The first eight bundles predate this field and cannot be reliably backfilled
+from their retained metadata alone. Refreshing those values is a separate,
+explicitly authorized Instagram operation.
+
 This is a technical feasibility route, not a supported Instagram integration.
 Instagram says automated collection without permission violates its terms, and
 third-party downloader behavior can break when Instagram changes. Use should be
