@@ -1,9 +1,9 @@
-# HARVEST
+# harvestrr
 
-HARVEST is a local-first tool for turning media the user intentionally saved
+harvestrr is a local-first tool for turning media the user intentionally saved
 online into durable, predictable creative-media bundles.
 
-The project is also referred to as **HARVESTRR**. Its privacy, ownership, and
+Its privacy, ownership, and
 least-privilege commitments are defined in
 [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md). Current and intended
 licensing status is recorded in [`LICENSING.md`](LICENSING.md).

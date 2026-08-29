@@ -9,7 +9,7 @@ or commercialize the code.
 
 ## Intended public-release policy
 
-The project owner intends to consider publishing HARVESTRR's source after the
+The project owner intends to consider publishing harvestrr's source after the
 product is fully operational, while prohibiting commercial reuse and commercial
 clones.
 
@@ -35,4 +35,3 @@ prohibited.
 
 This document records project intent; it is not a substitute for legal advice or
 final license text.
-

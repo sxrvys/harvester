@@ -2,7 +2,7 @@
 
 Status: public-documentation spike and one explicitly authorized single-URL
 proof completed 2026-08-29. The active Firefox profile was supplied directly to
-`yt-dlp`; no cookies were exported, printed, serialized by HARVEST, or committed.
+`yt-dlp`; no cookies were exported, printed, serialized by harvestrr, or committed.
 
 ## First live result
 
@@ -35,7 +35,7 @@ Separate discovery from acquisition:
    `yt-dlp` against that one URL and reads the existing authorized session via
    `--cookies-from-browser`. The browser and profile must be named explicitly at
    runtime; no default browser probing is allowed.
-3. Cookies are read only by the downloader for that run. HARVEST does not export,
+3. Cookies are read only by the downloader for that run. harvestrr does not export,
    copy, log, serialize, or commit them. Downloader stdout/stderr is sanitized
    before it becomes application logging.
 4. The adapter stages downloader output and machine-readable metadata locally.
