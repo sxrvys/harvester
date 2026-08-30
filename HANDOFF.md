@@ -170,12 +170,30 @@ The next vertical slice was completed and manually accepted on 2026-08-30:
 - A persistent background script owns active harvests, so closing the popup no
   longer interrupts them. Safe status survives popup closure and Firefox restart.
 - The popup can open the configured output folder.
-- Successful extension harvests update the authoritative ledger without reviving
-  retired items.
+- One-off extension harvests create bundles without ledger entries. The lifecycle
+  ledger is reserved for archival discovery and batch workflows.
 - Firefox successfully harvested `Da8NsGRq7i0` and idempotently refreshed the
   existing `DcSvEX4IWu7` bundle. The owner confirmed the popup progressed from
   **Harvesting** to **Harvest complete** after being closed and reopened.
-- The full suite passes 55 tests.
+- The full suite passes 61 tests.
+
+## Unsupported-site picker milestone completed
+
+Manually accepted in Firefox on 2026-08-30 using MDN's iframe-based flower-video
+demo:
+
+- **Select visible media** activates only after an explicit user gesture.
+- The picker follows the pointer into accessible frames, outlines only the hovered
+  `<video>` or `<audio>`, and shows an explicit **Harvest media** control.
+- Selection reads only `currentSrc`, `src`, and direct child `<source>` URLs.
+- The bounded native path rejects private/local destinations, validates redirects,
+  enforces a 500 MB streamed-byte ceiling, and requires a probed duration no longer
+  than 10 minutes before archival.
+- The accepted proof produced `flower_ec751467597feb26` with a preserved WebM,
+  playable WebM, 48 kHz/24-bit stereo WAV, and matching sizes/hashes.
+- Closing the popup does not interrupt work. Picker state cancels on timeout, Escape,
+  tab navigation/closure, or extension reload and cannot remain falsely ready.
+- Permissions remain only `activeTab`, `nativeMessaging`, and local `storage`.
 
 The current Saved index and ledger contain 454 items. Three oldest-first batches
 of ten have completed; the third completed 10/10 on 2026-08-30. The ledger then
@@ -184,13 +202,14 @@ carousel, and 422 discovered items.
 
 ## Next implementation direction
 
-Preserve the accepted Instagram path, then implement a bounded single-video
-YouTube adapter. It must reject playlists, channels, crawling, private/local
-destinations, and unknowable or over-limit media before acquisition. Add mocked
-tests before requesting authorization for one live YouTube proof.
+Expose **Archival Harvest** as a distinct user-facing mode. Its Instagram section
+should show Saved queue counts and last scan, offer **Scan saved posts** using the
+existing five-consecutive-known boundary, and offer **Harvest next 10** using the
+existing oldest-first ledger and pacing. One-off harvests must remain ledger-free.
 
-Do not add settings UI, Saved-batch UI, generic extraction, Chrome packaging, or
-other speculative features until this narrow slice is accepted.
+After that, implement a bounded single-video YouTube adapter, followed by a bounded
+single-post Reddit adapter. Packaging, signing, and distribution remain paused until
+the project owner explicitly resumes them.
 
 ## Working preferences
 

@@ -5,7 +5,10 @@ const status = document.querySelector("#status");
 const harvest = document.querySelector("#harvest");
 const settings = document.querySelector("#settings");
 const openOutput = document.querySelector("#open-output");
+const selectMedia = document.querySelector("#select-media");
 let currentUrl = null;
+let currentTabId = null;
+let unsupportedPage = false;
 let companionConfigured = false;
 
 function isSupportedUrl(url) {
@@ -23,12 +26,16 @@ async function initialize() {
   try {
     const tabs = await browser.tabs.query({active: true, currentWindow: true});
     const url = tabs[0] && tabs[0].url;
+    currentTabId = tabs[0] && tabs[0].id;
     if (url) {
       const parsed = new URL(url);
       page.textContent = `${parsed.host}${parsed.pathname}`;
       page.title = url;
       if (isSupportedUrl(url)) {
         currentUrl = url;
+      } else if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        unsupportedPage = true;
+        selectMedia.hidden = false;
       }
     }
 
@@ -37,7 +44,8 @@ async function initialize() {
       const configured = Boolean(response.result && response.result.configured);
       companionConfigured = configured;
       const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
-      harvest.disabled = !configured || !currentUrl || operation.state === "running";
+      harvest.disabled = !configured || !currentUrl || ["running", "selecting"].includes(operation.state);
+      selectMedia.disabled = !configured || !unsupportedPage || ["running", "selecting"].includes(operation.state);
       status.textContent = configured
         ? operation.message
         : "Configure output and Firefox profile in local settings";
@@ -81,6 +89,16 @@ harvest.addEventListener("click", async () => {
 });
 
 settings.addEventListener("click", () => browser.runtime.openOptionsPage());
+selectMedia.addEventListener("click", async () => {
+  if (!currentTabId || selectMedia.disabled) return;
+  const response = await browser.runtime.sendMessage({command: "start_picker", tab_id: currentTabId});
+  if (response && response.accepted) {
+    status.textContent = "Click one visible video or audio element; press Escape to cancel";
+    window.close();
+  } else {
+    status.textContent = response && response.state && response.state.message || "Media picker unavailable";
+  }
+});
 openOutput.addEventListener("click", async () => {
   const response = await browser.runtime.sendMessage({command: "open_output_folder"});
   if (!response || !response.ok) {
@@ -93,7 +111,8 @@ setInterval(async () => {
   try {
     const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
     status.textContent = operation.message;
-    harvest.disabled = !currentUrl || operation.state === "running";
+    harvest.disabled = !currentUrl || ["running", "selecting"].includes(operation.state);
+    selectMedia.disabled = !unsupportedPage || ["running", "selecting"].includes(operation.state);
   } catch (error) {
     // initialize() owns companion availability messaging.
   }

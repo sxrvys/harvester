@@ -164,12 +164,15 @@ For an unsupported current page, the user may explicitly choose:
 
 1. Try the current page URL through the generic extractor.
 2. Activate a temporary picker and click one visible `<video>` or `<audio>`
-   element.
+   element in the page or an accessible frame.
 3. Paste one direct HTTP(S) media, HLS, or DASH URL.
 
 The picker reads only ordinary properties of the clicked element: `currentSrc`,
 `src`, and child `<source src>` values. It stops after selection or cancellation.
-It does not scan the page or inspect network activity.
+It does not scan page content or inspect network activity. After the explicit
+picker gesture, it may follow the user's pointer into an accessible frame solely
+to attach the one-shot click handler; inaccessible cross-origin frames remain
+unsupported.
 
 The companion accepts only HTTP(S) inputs. It rejects `file:`, `data:`,
 `javascript:`, and `blob:` URLs, localhost, private-network destinations, and

@@ -51,8 +51,17 @@ host verifies them again before every run.
 
 Active harvests are owned by the extension background script, so closing the
 popup does not interrupt work. Safe progress and completion state persist in
-local extension storage. Successful harvests reconcile the local lifecycle
-ledger, and **Open output folder** delegates to the verified native path.
+local extension storage. One-off harvests create bundles without lifecycle-ledger
+bookkeeping; the ledger is reserved for archival queues. **Open output folder**
+delegates to the verified native path.
+
+On unsupported HTTP(S) pages, **Select visible media** activates a temporary,
+one-shot picker. It follows the user's pointer into accessible frames, outlines
+only the hovered `<video>` or `<audio>`, and displays **Harvest media** for an
+unambiguous selection. It reads only that selected element's ordinary media URLs
+and performs one bounded attempt; it does not scan page content or inspect traffic.
+The accepted proof is recorded in
+[`docs/unsupported-site-picker-acceptance.md`](docs/unsupported-site-picker-acceptance.md).
 
 The approved glyph master and an editable theme-adaptive SVG live under
 [`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it

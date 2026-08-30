@@ -132,6 +132,45 @@ class NativeHostTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         opened.assert_called_once_with(["open", str(archive)], check=True, capture_output=True)
 
+    def test_selected_blob_media_fails_cleanly_without_configuration(self) -> None:
+        with TemporaryDirectory() as temporary, self.assertRaises(ProtocolError) as raised:
+            handle_message(
+                {
+                    "version": 1,
+                    "command": "harvest_media_url",
+                    "request_id": "abc",
+                    "payload": {"media_url": "blob:https://example.com/id", "page_url": "https://example.com/"},
+                },
+                settings_path=Path(temporary) / "missing.json",
+            )
+        self.assertEqual(raised.exception.code, "unsupported_media")
+
+    def test_harvest_media_url_dispatches_one_selection(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "archive"
+            archive.mkdir()
+            settings = root / "settings.json"
+            settings.write_text(json.dumps({"archive_root": str(archive)}), encoding="utf-8")
+            destination = archive / "selected"
+            with patch("harvester.generic.harvest_selected_media", return_value=destination) as harvest:
+                response = handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_media_url",
+                        "request_id": "abc",
+                        "payload": {
+                            "media_url": "https://cdn.example.com/video.mp4",
+                            "page_url": "https://example.com/demo",
+                        },
+                    },
+                    settings_path=settings,
+                )
+        self.assertTrue(response["ok"])
+        harvest.assert_called_once_with(
+            "https://cdn.example.com/video.mp4", "https://example.com/demo", archive
+        )
+
     def test_harvest_url_rejects_unsupported_source_before_configuration(self) -> None:
         with TemporaryDirectory() as temporary:
             with self.assertRaises(ProtocolError) as raised:
@@ -184,10 +223,6 @@ class NativeHostTests(unittest.TestCase):
             archive.mkdir()
             profile.mkdir()
             (profile / "cookies.sqlite").touch()
-            state = root / "state"
-            state.mkdir()
-            ledger = state / "item-ledger.json"
-            ledger.write_text(json.dumps({"schema_version": 1, "items": {}}), encoding="utf-8")
             settings = root / "settings.json"
             settings.write_text(
                 json.dumps({"archive_root": str(archive), "firefox_profile": str(profile)}),
@@ -203,10 +238,8 @@ class NativeHostTests(unittest.TestCase):
                     },
                     settings_path=settings,
                 )
-            ledger_payload = json.loads(ledger.read_text(encoding="utf-8"))
         self.assertTrue(response["ok"])
         self.assertEqual(response["result"]["output_path"], str(destination))
-        self.assertEqual(ledger_payload["items"]["instagram:Example"]["status"], "complete")
         harvest.assert_called_once_with(
             "https://www.instagram.com/p/Example/", profile, archive
         )

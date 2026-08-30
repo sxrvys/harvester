@@ -183,12 +183,6 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
         raise ProtocolError(code, safe_message, request_id) from None
     except Exception:
         raise ProtocolError("processing_failed", "Harvest processing failed safely", request_id) from None
-    state_root = archive_root.parent / "state"
-    ledger_path = state_root / "item-ledger.json"
-    if ledger_path.exists():
-        from .ledger import record_completed_item
-
-        record_completed_item(ledger_path, "instagram", parsed.path.rstrip("/").split("/")[-1], url, destination)
     return {"state": "complete", "source": "instagram", "output_path": str(destination)}
 
 
@@ -202,6 +196,28 @@ def _open_output_folder(request_id: str, settings_path: Path) -> dict[str, objec
     except (OSError, subprocess.CalledProcessError):
         raise ProtocolError("output_unavailable", "The output folder could not be opened", request_id) from None
     return {"state": "opened"}
+
+
+def _harvest_media_url(payload: dict[str, object], request_id: str, settings_path: Path) -> dict[str, object]:
+    if set(payload) != {"media_url", "page_url"}:
+        raise ProtocolError("invalid_request", "harvest_media_url requires one media and page URL", request_id)
+    media_url = payload.get("media_url")
+    page_url = payload.get("page_url")
+    if isinstance(media_url, str) and media_url.startswith("blob:"):
+        raise ProtocolError("unsupported_media", "Blob and Media Source media are unsupported", request_id)
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id)
+    if not archive_root.is_dir():
+        raise ProtocolError("output_unavailable", "The configured output folder is unavailable", request_id)
+    from .generic import GenericMediaError, harvest_selected_media
+
+    try:
+        destination = harvest_selected_media(media_url, page_url, archive_root)
+    except GenericMediaError as error:
+        raise ProtocolError(error.code, error.message, request_id) from None
+    except Exception:
+        raise ProtocolError("processing_failed", "Selected media processing failed safely", request_id) from None
+    return {"state": "complete", "source": "generic", "output_path": str(destination)}
 
 
 def handle_message(
@@ -260,6 +276,14 @@ def handle_message(
             "request_id": request_id,
             "ok": True,
             "result": _open_output_folder(request_id, settings_path or _settings_path()),
+        }
+    if command == "harvest_media_url":
+        result = _harvest_media_url(payload, request_id, settings_path or _settings_path())
+        return {
+            "version": PROTOCOL_VERSION,
+            "request_id": request_id,
+            "ok": True,
+            "result": result,
         }
     if command == "harvest_url":
         result = _harvest_url(payload, request_id, settings_path or _settings_path())

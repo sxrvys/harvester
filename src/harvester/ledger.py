@@ -48,6 +48,16 @@ def sync_item_ledger(
             **({"reason": previous["reason"]} if previous.get("reason") else {}),
         }
 
+    # Explicit harvests and future adapters need not appear in Instagram Saved.
+    # Preserve every authoritative existing record that the Saved import did not
+    # address; a sync must never erase another source's lifecycle history.
+    for key, previous in existing_items.items():
+        if key not in items:
+            status = previous.get("status")
+            if status not in VALID_STATUSES:
+                raise ValueError(f"invalid existing ledger status for {key}: {status}")
+            items[key] = previous
+
     for metadata_path in archive_root.glob("*/metadata.json") if archive_root.is_dir() else []:
         try:
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -103,40 +113,6 @@ def set_item_status(
     if reason:
         record["reason"] = reason
     ledger["updated_at"] = record["status_updated_at"]
-    ledger["summary"] = _summary(ledger["items"])
-    _atomic_json(ledger_path, ledger)
-    return record
-
-
-def record_completed_item(
-    ledger_path: Path,
-    source: str,
-    source_id: str,
-    source_url: str,
-    archive_directory: Path,
-) -> dict[str, Any]:
-    """Record one explicit harvest without weakening an existing retirement."""
-    if ledger_path.exists():
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-    else:
-        ledger = {"schema_version": 1, "items": {}}
-    key = identity_key(source, source_id)
-    previous = ledger["items"].get(key, {})
-    if previous.get("status") in {"retired-used", "retired-deleted"}:
-        return previous
-    now = datetime.now(timezone.utc).isoformat()
-    record = {
-        **previous,
-        "source": source,
-        "source_id": source_id,
-        "source_url": source_url,
-        "status": "complete",
-        "status_updated_at": now,
-        "archive_directory": str(archive_directory),
-    }
-    record.pop("reason", None)
-    ledger["items"][key] = record
-    ledger["updated_at"] = now
     ledger["summary"] = _summary(ledger["items"])
     _atomic_json(ledger_path, ledger)
     return record
