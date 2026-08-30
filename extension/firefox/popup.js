@@ -14,12 +14,26 @@ let companionConfigured = false;
 function isSupportedUrl(url) {
   try {
     const parsed = new URL(url);
-    return (parsed.protocol === "http:" || parsed.protocol === "https:")
-      && (parsed.hostname === "instagram.com" || parsed.hostname === "www.instagram.com")
-      && /^\/(p|reel|reels)\/[A-Za-z0-9_-]+\/?$/.test(parsed.pathname);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    if ((parsed.hostname === "instagram.com" || parsed.hostname === "www.instagram.com")
+        && /^\/(p|reel|reels)\/[A-Za-z0-9_-]+\/?$/.test(parsed.pathname)) return true;
+    return (parsed.hostname === "youtube.com" || parsed.hostname === "www.youtube.com")
+      && parsed.pathname === "/watch"
+      && /^[A-Za-z0-9_-]{11}$/.test(parsed.searchParams.get("v") || "");
   } catch (error) {
     return false;
   }
+}
+
+function displayUrl(parsed) {
+  if ((parsed.hostname === "youtube.com" || parsed.hostname === "www.youtube.com")
+      && parsed.pathname === "/watch") {
+    const videoId = parsed.searchParams.get("v");
+    if (/^[A-Za-z0-9_-]{11}$/.test(videoId || "")) {
+      return `${parsed.host}/watch?v=${videoId}`;
+    }
+  }
+  return `${parsed.host}${parsed.pathname}`;
 }
 
 async function initialize() {
@@ -29,7 +43,7 @@ async function initialize() {
     currentTabId = tabs[0] && tabs[0].id;
     if (url) {
       const parsed = new URL(url);
-      page.textContent = `${parsed.host}${parsed.pathname}`;
+      page.textContent = displayUrl(parsed);
       page.title = url;
       if (isSupportedUrl(url)) {
         currentUrl = url;

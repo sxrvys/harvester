@@ -63,6 +63,14 @@ and performs one bounded attempt; it does not scan page content or inspect traff
 The accepted proof is recorded in
 [`docs/unsupported-site-picker-acceptance.md`](docs/unsupported-site-picker-acceptance.md).
 
+Canonical YouTube watch pages use a separate bounded adapter behind **Harvest
+this**. It accepts exactly one video ID and forces no-playlist mode,
+applies the same 10-minute and 500 MB ceilings, and never enumerates channels,
+playlists, search results, recommendations, or account collections.
+The first live Firefox acceptance passed on 2026-08-30 with YouTube video
+`URwmZq70_DU`, producing a preserved WebM, playable WebM, and 48 kHz/24-bit
+stereo WAV without adding an archival-ledger entry.
+
 The approved glyph master and an editable theme-adaptive SVG live under
 [`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it
 can render black in light browser themes and white in dark browser themes.

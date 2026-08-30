@@ -207,8 +207,15 @@ should show Saved queue counts and last scan, offer **Scan saved posts** using t
 existing five-consecutive-known boundary, and offer **Harvest next 10** using the
 existing oldest-first ledger and pacing. One-off harvests must remain ledger-free.
 
-After that, implement a bounded single-video YouTube adapter, followed by a bounded
-single-post Reddit adapter. Packaging, signing, and distribution remain paused until
+The bounded single-video YouTube adapter was manually accepted in Firefox on
+2026-08-30 using public-domain U.S. Government film `URwmZq70_DU`. It produced
+a preserved 17,694,619-byte WebM, an identical playable WebM derivative, and a
+48 kHz/24-bit stereo WAV; all recorded sizes and hashes matched. It accepts only
+canonical `/watch?v=` URLs and structurally rejects playlists, channels, searches,
+and bulk enumeration. Current YouTube extraction requires the Homebrew yt-dlp/Deno
+stack, and both whole-request and fragment retries are disabled.
+
+Next, implement a bounded single-post Reddit adapter. Packaging, signing, and distribution remain paused until
 the project owner explicitly resumes them.
 
 ## Working preferences

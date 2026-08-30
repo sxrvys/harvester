@@ -59,7 +59,6 @@ async function runHarvest(url) {
         message: "Harvest complete",
         output_path: response.result && response.result.output_path
       });
-      pickerTabId = message.tab_id;
     } else {
       await setHarvestState({
         state: "failed",

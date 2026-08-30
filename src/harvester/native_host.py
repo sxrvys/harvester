@@ -154,13 +154,19 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
         raise ProtocolError("invalid_url", "URL is invalid", request_id) from None
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ProtocolError("invalid_url", "Only HTTP(S) URLs are accepted", request_id)
-    if parsed.hostname.casefold() not in {"instagram.com", "www.instagram.com"}:
-        raise ProtocolError("unsupported_source", "This source is not supported yet", request_id)
-
+    hostname = parsed.hostname.casefold()
     from .instagram import POST_URL
-
-    if not POST_URL.fullmatch(url):
-        raise ProtocolError("invalid_url", "Use one canonical Instagram post or reel URL", request_id)
+    from .youtube import WATCH_URL
+    if hostname in {"instagram.com", "www.instagram.com"}:
+        source = "instagram"
+        if not POST_URL.fullmatch(url):
+            raise ProtocolError("invalid_url", "Use one canonical Instagram post or reel URL", request_id)
+    elif hostname in {"youtube.com", "www.youtube.com"}:
+        source = "youtube"
+        if not WATCH_URL.fullmatch(url):
+            raise ProtocolError("invalid_url", "Use one canonical YouTube watch URL", request_id)
+    else:
+        raise ProtocolError("unsupported_source", "This source is not supported yet", request_id)
 
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id)
@@ -170,20 +176,25 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
     if not (firefox_profile / "cookies.sqlite").is_file():
         raise ProtocolError("output_unavailable", "The configured Firefox profile is unavailable", request_id)
 
-    from .instagram import AcquisitionError, harvest_instagram_url
-
     try:
-        destination = harvest_instagram_url(url, firefox_profile, archive_root)
+        if source == "instagram":
+            from .instagram import harvest_instagram_url
+            destination = harvest_instagram_url(url, firefox_profile, archive_root)
+        else:
+            from .youtube import harvest_youtube_url
+            destination = harvest_youtube_url(url, firefox_profile, archive_root)
     except ValueError:
-        raise ProtocolError("invalid_url", "Use one Instagram post or reel URL", request_id) from None
-    except AcquisitionError as error:
+        raise ProtocolError("invalid_url", f"Use one canonical {source.title()} URL", request_id) from None
+    except Exception as error:
+        from .instagram import AcquisitionError
+        from .youtube import YouTubeAcquisitionError
+        if not isinstance(error, (AcquisitionError, YouTubeAcquisitionError)):
+            raise ProtocolError("processing_failed", "Harvest processing failed safely", request_id) from None
         message = str(error).casefold()
         code = "authentication_stop" if "authentication" in message or "rate-limit" in message else "acquisition_failed"
-        safe_message = "Instagram authorization stopped the harvest" if code == "authentication_stop" else "Instagram acquisition failed"
+        safe_message = f"{source.title()} authorization stopped the harvest" if code == "authentication_stop" else f"{source.title()} acquisition failed"
         raise ProtocolError(code, safe_message, request_id) from None
-    except Exception:
-        raise ProtocolError("processing_failed", "Harvest processing failed safely", request_id) from None
-    return {"state": "complete", "source": "instagram", "output_path": str(destination)}
+    return {"state": "complete", "source": source, "output_path": str(destination)}
 
 
 def _open_output_folder(request_id: str, settings_path: Path) -> dict[str, object]:

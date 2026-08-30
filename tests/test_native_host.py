@@ -244,6 +244,49 @@ class NativeHostTests(unittest.TestCase):
             "https://www.instagram.com/p/Example/", profile, archive
         )
 
+    def test_harvest_url_dispatches_one_youtube_watch_video(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "archive"
+            profile = root / "profile"
+            destination = archive / "youtube_URwmZq70_DU"
+            archive.mkdir()
+            profile.mkdir()
+            (profile / "cookies.sqlite").touch()
+            settings = root / "settings.json"
+            settings.write_text(
+                json.dumps({"archive_root": str(archive), "firefox_profile": str(profile)}),
+                encoding="utf-8",
+            )
+            with patch("harvester.youtube.harvest_youtube_url", return_value=destination) as harvest:
+                response = handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://www.youtube.com/watch?v=URwmZq70_DU"},
+                    },
+                    settings_path=settings,
+                )
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["result"]["source"], "youtube")
+        harvest.assert_called_once_with(
+            "https://www.youtube.com/watch?v=URwmZq70_DU", profile, archive
+        )
+
+    def test_harvest_url_rejects_youtube_playlist(self) -> None:
+        with TemporaryDirectory() as temporary, self.assertRaises(ProtocolError) as raised:
+            handle_message(
+                {
+                    "version": 1,
+                    "command": "harvest_url",
+                    "request_id": "abc",
+                    "payload": {"url": "https://www.youtube.com/playlist?list=PL_example"},
+                },
+                settings_path=Path(temporary) / "missing.json",
+            )
+        self.assertEqual(raised.exception.code, "invalid_url")
+
     def test_unknown_command_is_sanitized(self) -> None:
         with self.assertRaises(ProtocolError) as raised:
             handle_message(
