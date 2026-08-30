@@ -36,7 +36,19 @@ class LedgerTests(unittest.TestCase):
 
     def test_retired_deleted_preserves_old_path_as_history(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            ledger = Path(temporary) / "ledger.json"
+            root = Path(temporary)
+            ledger = root / "ledger.json"
+            saved = root / "saved.json"
+            archive = root / "archive"
+            archive.mkdir()
+            saved.write_text(json.dumps({
+                "complete": True,
+                "items": [{
+                    "source": "instagram",
+                    "source_id": "ABC",
+                    "source_url": "https://www.instagram.com/p/ABC/",
+                }],
+            }), encoding="utf-8")
             ledger.write_text(json.dumps({
                 "items": {
                     "instagram:ABC": {
@@ -51,6 +63,10 @@ class LedgerTests(unittest.TestCase):
             self.assertNotIn("archive_directory", record)
             self.assertEqual(record["last_archive_directory"], "archive/title_ABC")
             self.assertEqual(record["status"], "retired-deleted")
+            rebuilt = sync_item_ledger(saved, ledger, archive)
+            rebuilt_record = rebuilt["items"]["instagram:ABC"]
+            self.assertEqual(rebuilt_record["last_archive_directory"], "archive/title_ABC")
+            self.assertEqual(rebuilt_record["reason"], "user deleted")
 
     def test_archive_and_manual_review_set_terminal_states(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

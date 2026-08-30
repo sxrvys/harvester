@@ -44,6 +44,8 @@ def sync_item_ledger(
             "status": status,
             "status_updated_at": previous.get("status_updated_at", now),
             **({"archive_directory": previous["archive_directory"]} if previous.get("archive_directory") else {}),
+            **({"last_archive_directory": previous["last_archive_directory"]} if previous.get("last_archive_directory") else {}),
+            **({"reason": previous["reason"]} if previous.get("reason") else {}),
         }
 
     for metadata_path in archive_root.glob("*/metadata.json") if archive_root.is_dir() else []:
