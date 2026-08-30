@@ -31,12 +31,14 @@ def main() -> int:
     batch = subparsers.add_parser("batch-oldest", help="harvest a bounded oldest-first Saved batch")
     batch.add_argument("--firefox-profile", type=Path, required=True)
     batch.add_argument("--index", type=Path, default=Path("state/saved-index.json"))
-    batch.add_argument("--state", type=Path, default=Path("state/batch-oldest-10.json"))
+    batch.add_argument("--state", type=Path, help="resume an exact batch state; omitted creates a unique state file")
+    batch.add_argument("--state-dir", type=Path, default=Path("state/batches"))
     batch.add_argument("--archive-root", type=Path, default=Path("archive"))
     batch.add_argument("--item-ledger", type=Path, default=Path("state/item-ledger.json"))
     batch.add_argument("--count", type=int, default=10)
     batch.add_argument("--min-delay", type=float, default=10.0)
     batch.add_argument("--max-delay", type=float, default=15.0)
+    batch.add_argument("--manual-review", type=Path, default=Path("state/manual-review.json"))
     audit = subparsers.add_parser("audit", help="verify the local archive without modifying it")
     audit.add_argument("--archive-root", type=Path, default=Path("archive"))
     names = subparsers.add_parser("names-preview", help="preview shorter deterministic bundle names")
@@ -114,21 +116,35 @@ def main() -> int:
         )
         return 0
     if arguments.command == "batch-oldest":
-        from .batch import harvest_oldest
+        from .batch import harvest_oldest, new_batch_path
+        from .ledger import sync_item_ledger
+        from .review import build_batch_review, render_batch_review
 
-        result = harvest_oldest(
-            arguments.index,
-            arguments.state,
-            arguments.firefox_profile,
-            arguments.archive_root,
-            arguments.count,
-            arguments.min_delay,
-            arguments.max_delay,
-            arguments.item_ledger,
-        )
+        batch_path = arguments.state or new_batch_path(arguments.state_dir, arguments.count)
+        try:
+            result = harvest_oldest(
+                arguments.index,
+                batch_path,
+                arguments.firefox_profile,
+                arguments.archive_root,
+                arguments.count,
+                arguments.min_delay,
+                arguments.max_delay,
+                arguments.item_ledger,
+                arguments.manual_review,
+            )
+        finally:
+            if batch_path.exists():
+                sync_item_ledger(
+                    arguments.index,
+                    arguments.item_ledger,
+                    arguments.archive_root,
+                    arguments.manual_review,
+                )
         complete = sum(item["status"] == "complete" for item in result["items"])
         failed = sum(item["status"] == "failed" for item in result["items"])
-        print(f"batch finished: {complete} complete, {failed} failed -> {arguments.state}")
+        print(f"batch finished: {complete} complete, {failed} failed -> {batch_path}")
+        print(render_batch_review(build_batch_review(batch_path, arguments.archive_root, arguments.item_ledger)))
         return 0
     if arguments.command == "audit":
         from .audit import audit_archive

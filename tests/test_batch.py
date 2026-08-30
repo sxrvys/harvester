@@ -4,14 +4,22 @@ import sys
 import json
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.batch import _select_oldest_unprocessed, harvest_oldest
+from harvest.batch import _select_oldest_unprocessed, harvest_oldest, new_batch_path
 
 
 class BatchTests(unittest.TestCase):
+    def test_generates_unique_timestamped_batch_path(self) -> None:
+        now = datetime(2026, 8, 30, 1, 2, 3, 456789, tzinfo=timezone.utc)
+        self.assertEqual(
+            new_batch_path(Path("state/batches"), 10, now),
+            Path("state/batches/20260830T010203456789Z-oldest-10.json"),
+        )
+
     def test_rejects_delay_below_ten_seconds(self) -> None:
         with self.assertRaises(ValueError):
             harvest_oldest(Path("missing"), Path("state"), Path("profile"), Path("archive"), min_delay=9)

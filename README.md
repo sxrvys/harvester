@@ -49,6 +49,11 @@ bounded names and honors `manual_title` / `manual_creator` metadata overrides.
 Batch review is also read-only. It combines batch, ledger, and bundle metadata
 into a concise review report with lifecycle status, media inventory, duration,
 caption excerpt, naming proposal, and platform-provided audio attribution.
+
+`batch-oldest` creates a unique timestamped record under `state/batches/` when
+`--state` is omitted. After the bounded run it synchronizes the lifecycle ledger
+and prints the batch review automatically. To resume an interrupted run, pass
+its exact record back with `--state`; terminal failures are not retried.
 The first-corpus naming analysis and editorial proposals are recorded in
 [`docs/naming-review.md`](docs/naming-review.md).
 

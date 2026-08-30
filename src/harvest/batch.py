@@ -26,6 +26,7 @@ def harvest_oldest(
     min_delay: float = 10.0,
     max_delay: float = 15.0,
     item_ledger_path: Path | None = None,
+    manual_review_path: Path | None = None,
 ) -> dict[str, Any]:
     if count < 1:
         raise ValueError("count must be positive")
@@ -79,7 +80,7 @@ def harvest_oldest(
             _atomic_write(batch_path, batch)
             if "authentication/rate-limit stop" in str(error):
                 raise BatchError("batch stopped on authentication or rate-limit signal") from error
-            _append_manual_review(batch_path.parent / "manual-review.json", record, str(error))
+            _append_manual_review(manual_review_path or batch_path.parent / "manual-review.json", record, str(error))
         else:
             record["status"] = "complete"
             record["archive_directory"] = str(destination)
@@ -93,6 +94,12 @@ def harvest_oldest(
             time.sleep(delay)
 
     return batch
+
+
+def new_batch_path(directory: Path, count: int, now: datetime | None = None) -> Path:
+    timestamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    stamp = timestamp.strftime("%Y%m%dT%H%M%S%fZ")
+    return directory / f"{stamp}-oldest-{count}.json"
 
 
 def _select_oldest_unprocessed(
