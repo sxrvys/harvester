@@ -41,10 +41,14 @@ Offline archive checks and naming review:
 ```sh
 harvest audit --archive-root archive
 harvest names-preview --archive-root archive
+harvest batch-review --batch state/BATCH.json
 ```
 
 The audit is read-only. Naming preview never renames a bundle; it shows proposed
 bounded names and honors `manual_title` / `manual_creator` metadata overrides.
+Batch review is also read-only. It combines batch, ledger, and bundle metadata
+into a concise review report with lifecycle status, media inventory, duration,
+caption excerpt, naming proposal, and platform-provided audio attribution.
 The first-corpus naming analysis and editorial proposals are recorded in
 [`docs/naming-review.md`](docs/naming-review.md).
 

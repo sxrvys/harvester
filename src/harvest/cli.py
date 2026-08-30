@@ -68,6 +68,10 @@ def main() -> int:
     delete.add_argument("--archive-root", type=Path, default=Path("archive"))
     delete.add_argument("--trash-root", type=Path, required=True)
     delete.add_argument("--reason", default="User removed from archive")
+    review = subparsers.add_parser("batch-review", help="summarize one local harvest batch for review")
+    review.add_argument("--batch", type=Path, required=True)
+    review.add_argument("--archive-root", type=Path, default=Path("archive"))
+    review.add_argument("--ledger", type=Path, default=Path("state/item-ledger.json"))
     arguments = parser.parse_args()
     if arguments.command == "instagram":
         from .instagram import harvest_instagram_url
@@ -204,6 +208,11 @@ def main() -> int:
             arguments.reason,
         )
         print(f"{arguments.source}:{arguments.source_id} -> {result['status']} ({result['destination']})")
+        return 0
+    if arguments.command == "batch-review":
+        from .review import build_batch_review, render_batch_review
+
+        print(render_batch_review(build_batch_review(arguments.batch, arguments.archive_root, arguments.ledger)))
         return 0
     parser.print_help()
     return 0
