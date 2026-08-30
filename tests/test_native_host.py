@@ -6,6 +6,8 @@ import struct
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
@@ -19,12 +21,195 @@ def framed(value: object) -> bytes:
 
 class NativeHostTests(unittest.TestCase):
     def test_get_status(self) -> None:
-        response = handle_message(
-            {"version": 1, "command": "get_status", "request_id": "abc", "payload": {}}
-        )
+        with TemporaryDirectory() as temporary:
+            response = handle_message(
+                {"version": 1, "command": "get_status", "request_id": "abc", "payload": {}},
+                settings_path=Path(temporary) / "missing.json",
+            )
         self.assertTrue(response["ok"])
         self.assertEqual(response["request_id"], "abc")
         self.assertEqual(response["result"]["state"], "ready")
+        self.assertFalse(response["result"]["configured"])
+
+    def test_harvest_url_requires_configuration(self) -> None:
+        with TemporaryDirectory() as temporary:
+            with self.assertRaises(ProtocolError) as raised:
+                handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://www.instagram.com/p/Example/"},
+                    },
+                    settings_path=Path(temporary) / "missing.json",
+                )
+        self.assertEqual(raised.exception.code, "output_unavailable")
+
+    def test_get_settings_returns_only_public_configuration(self) -> None:
+        with TemporaryDirectory() as temporary:
+            path = Path(temporary) / "settings.json"
+            path.write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "archive_root": "/output",
+                    "firefox_profile": "/profile",
+                    "cookie": "must-not-leak",
+                }),
+                encoding="utf-8",
+            )
+            response = handle_message(
+                {"version": 1, "command": "get_settings", "request_id": "abc", "payload": {}},
+                settings_path=path,
+            )
+        self.assertEqual(
+            set(response["result"]), {"archive_root", "firefox_profile", "configured"}
+        )
+        self.assertNotIn("cookie", json.dumps(response).lower())
+
+    def test_update_settings_validates_and_persists_private_file(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "archive"
+            profile = root / "profile"
+            archive.mkdir()
+            profile.mkdir()
+            (profile / "cookies.sqlite").touch()
+            path = root / "config" / "settings.json"
+            response = handle_message(
+                {
+                    "version": 1,
+                    "command": "update_settings",
+                    "request_id": "abc",
+                    "payload": {
+                        "archive_root": str(archive),
+                        "firefox_profile": str(profile),
+                    },
+                },
+                settings_path=path,
+            )
+            persisted = json.loads(path.read_text(encoding="utf-8"))
+            mode = path.stat().st_mode & 0o777
+        self.assertTrue(response["result"]["configured"])
+        self.assertEqual(persisted["archive_root"], str(archive.resolve()))
+        self.assertEqual(mode, 0o600)
+
+    def test_update_settings_rejects_unknown_fields(self) -> None:
+        with TemporaryDirectory() as temporary:
+            with self.assertRaises(ProtocolError) as raised:
+                handle_message(
+                    {
+                        "version": 1,
+                        "command": "update_settings",
+                        "request_id": "abc",
+                        "payload": {
+                            "archive_root": "/output",
+                            "firefox_profile": "/profile",
+                            "cookies": "secret",
+                        },
+                    },
+                    settings_path=Path(temporary) / "settings.json",
+                )
+        self.assertEqual(raised.exception.code, "invalid_request")
+        self.assertNotIn("secret", raised.exception.message)
+
+    def test_open_output_folder_uses_configured_directory(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "archive"
+            archive.mkdir()
+            settings = root / "settings.json"
+            settings.write_text(json.dumps({"archive_root": str(archive)}), encoding="utf-8")
+            with patch("harvester.native_host.subprocess.run") as opened:
+                response = handle_message(
+                    {
+                        "version": 1,
+                        "command": "open_output_folder",
+                        "request_id": "abc",
+                        "payload": {},
+                    },
+                    settings_path=settings,
+                )
+        self.assertTrue(response["ok"])
+        opened.assert_called_once_with(["open", str(archive)], check=True, capture_output=True)
+
+    def test_harvest_url_rejects_unsupported_source_before_configuration(self) -> None:
+        with TemporaryDirectory() as temporary:
+            with self.assertRaises(ProtocolError) as raised:
+                handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://example.com/video"},
+                    },
+                    settings_path=Path(temporary) / "missing.json",
+                )
+        self.assertEqual(raised.exception.code, "unsupported_source")
+
+    def test_harvest_url_rejects_instagram_collection_before_configuration(self) -> None:
+        with TemporaryDirectory() as temporary:
+            with self.assertRaises(ProtocolError) as raised:
+                handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://www.instagram.com/saved/"},
+                    },
+                    settings_path=Path(temporary) / "missing.json",
+                )
+        self.assertEqual(raised.exception.code, "invalid_url")
+
+    def test_harvest_url_rejects_extra_payload_fields(self) -> None:
+        with TemporaryDirectory() as temporary:
+            with self.assertRaises(ProtocolError) as raised:
+                handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://www.instagram.com/p/Example/", "cookies": "secret"},
+                    },
+                    settings_path=Path(temporary) / "missing.json",
+                )
+        self.assertEqual(raised.exception.code, "invalid_request")
+        self.assertNotIn("secret", raised.exception.message)
+
+    def test_harvest_url_dispatches_configured_instagram_item(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "archive"
+            profile = root / "profile"
+            destination = archive / "instagram_Example"
+            archive.mkdir()
+            profile.mkdir()
+            (profile / "cookies.sqlite").touch()
+            state = root / "state"
+            state.mkdir()
+            ledger = state / "item-ledger.json"
+            ledger.write_text(json.dumps({"schema_version": 1, "items": {}}), encoding="utf-8")
+            settings = root / "settings.json"
+            settings.write_text(
+                json.dumps({"archive_root": str(archive), "firefox_profile": str(profile)}),
+                encoding="utf-8",
+            )
+            with patch("harvester.instagram.harvest_instagram_url", return_value=destination) as harvest:
+                response = handle_message(
+                    {
+                        "version": 1,
+                        "command": "harvest_url",
+                        "request_id": "abc",
+                        "payload": {"url": "https://www.instagram.com/p/Example/"},
+                    },
+                    settings_path=settings,
+                )
+            ledger_payload = json.loads(ledger.read_text(encoding="utf-8"))
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["result"]["output_path"], str(destination))
+        self.assertEqual(ledger_payload["items"]["instagram:Example"]["status"], "complete")
+        harvest.assert_called_once_with(
+            "https://www.instagram.com/p/Example/", profile, archive
+        )
 
     def test_unknown_command_is_sanitized(self) -> None:
         with self.assertRaises(ProtocolError) as raised:

@@ -3,7 +3,15 @@
   "name": "harvester",
   "version": "0.0.1",
   "description": "Send explicitly selected media to the local harvester companion.",
-  "permissions": ["activeTab", "nativeMessaging"],
+  "permissions": ["activeTab", "nativeMessaging", "storage"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
+  },
   "browser_action": {
     "default_title": "harvester",
     "default_popup": "popup.html",

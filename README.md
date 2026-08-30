@@ -42,6 +42,18 @@ The agreed interface, permission boundary, resource limits, and native message
 contract are recorded in
 [`docs/browser-extension-spec.md`](docs/browser-extension-spec.md).
 
+The proof-of-concept host reads its private configuration from
+`~/.config/harvester/settings.json` (or `HARVESTER_SETTINGS_PATH`). The Firefox
+Settings screen stores the output folder and explicit Firefox profile there;
+the file is written atomically with user-only permissions. The popup enables
+**Harvest this** only when both paths are configured and valid, and the native
+host verifies them again before every run.
+
+Active harvests are owned by the extension background script, so closing the
+popup does not interrupt work. Safe progress and completion state persist in
+local extension storage. Successful harvests reconcile the local lifecycle
+ledger, and **Open output folder** delegates to the verified native path.
+
 The approved glyph master and an editable theme-adaptive SVG live under
 [`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it
 can render black in light browser themes and white in dark browser themes.

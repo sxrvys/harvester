@@ -1,0 +1,21 @@
+:root {
+  color-scheme: light dark;
+  font: message-box;
+  background: Canvas;
+  color: CanvasText;
+}
+
+body { margin: 0; }
+main { margin: 40px auto; max-width: 680px; padding: 0 24px; }
+header { align-items: center; display: flex; gap: 12px; }
+header img { height: 34px; width: 34px; }
+h1 { font-size: 24px; }
+form { display: grid; gap: 10px; margin-top: 28px; }
+label { font-weight: 650; margin-top: 8px; }
+input { font: inherit; padding: 9px; }
+button { font: inherit; margin-top: 12px; padding: 9px 14px; width: max-content; }
+#status { color: GrayText; margin-top: 18px; }
+
+@media (prefers-color-scheme: dark) {
+  header img { content: url("icons/glyph-light.svg"); }
+}

@@ -1,11 +1,22 @@
 "use strict";
 
-const NATIVE_APPLICATION = "com.harvester.native";
 const page = document.querySelector("#page");
 const status = document.querySelector("#status");
+const harvest = document.querySelector("#harvest");
+const settings = document.querySelector("#settings");
+const openOutput = document.querySelector("#open-output");
+let currentUrl = null;
+let companionConfigured = false;
 
-function requestId() {
-  return crypto.randomUUID();
+function isSupportedUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:")
+      && (parsed.hostname === "instagram.com" || parsed.hostname === "www.instagram.com")
+      && /^\/(p|reel|reels)\/[A-Za-z0-9_-]+\/?$/.test(parsed.pathname);
+  } catch (error) {
+    return false;
+  }
 }
 
 async function initialize() {
@@ -16,17 +27,23 @@ async function initialize() {
       const parsed = new URL(url);
       page.textContent = `${parsed.host}${parsed.pathname}`;
       page.title = url;
+      if (isSupportedUrl(url)) {
+        currentUrl = url;
+      }
     }
 
-    const response = await browser.runtime.sendNativeMessage(NATIVE_APPLICATION, {
-      version: 1,
-      command: "get_status",
-      request_id: requestId(),
-      payload: {}
-    });
-    status.textContent = response && response.ok
-      ? "Local companion ready"
-      : "Local companion returned an error";
+    const response = await browser.runtime.sendMessage({command: "get_companion_status"});
+    if (response && response.ok) {
+      const configured = Boolean(response.result && response.result.configured);
+      companionConfigured = configured;
+      const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
+      harvest.disabled = !configured || !currentUrl || operation.state === "running";
+      status.textContent = configured
+        ? operation.message
+        : "Configure output and Firefox profile in local settings";
+    } else {
+      status.textContent = "Local companion returned an error";
+    }
   } catch (error) {
     const detail = String(error && error.message || "").toLowerCase();
     if (detail.includes("no such native application")) {
@@ -41,5 +58,45 @@ async function initialize() {
     }
   }
 }
+
+harvest.addEventListener("click", async () => {
+  if (!currentUrl || harvest.disabled) return;
+  harvest.disabled = true;
+  status.textContent = "Harvesting… Keep Firefox open.";
+  try {
+    const response = await browser.runtime.sendMessage({
+      command: "start_harvest",
+      url: currentUrl
+    });
+    if (response && response.accepted) {
+      status.textContent = "Harvesting… Keep Firefox open.";
+    } else {
+      status.textContent = response && response.state && response.state.message || "Harvest already running";
+      harvest.disabled = false;
+    }
+  } catch (error) {
+    status.textContent = "Local companion became unavailable";
+    harvest.disabled = false;
+  }
+});
+
+settings.addEventListener("click", () => browser.runtime.openOptionsPage());
+openOutput.addEventListener("click", async () => {
+  const response = await browser.runtime.sendMessage({command: "open_output_folder"});
+  if (!response || !response.ok) {
+    status.textContent = response && response.error && response.error.message || "Output folder unavailable";
+  }
+});
+
+setInterval(async () => {
+  if (!companionConfigured) return;
+  try {
+    const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
+    status.textContent = operation.message;
+    harvest.disabled = !currentUrl || operation.state === "running";
+  } catch (error) {
+    // initialize() owns companion availability messaging.
+  }
+}, 1000);
 
 initialize();

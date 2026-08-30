@@ -2,6 +2,10 @@
 
 Status: agreed product contract for the Firefox-first proof of concept.
 
+Implementation note (2026-08-30): the Native Messaging host, settings flow,
+background-owned Instagram `harvest_url`, durable safe popup status, output-folder
+action, and ledger reconciliation are implemented and manually accepted.
+
 ## Purpose
 
 The extension is a small browser control surface for the local harvester engine.

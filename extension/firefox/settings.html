@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>harvester settings</title>
+    <link rel="stylesheet" href="settings.css">
+  </head>
+  <body>
+    <main>
+      <header><img src="icons/glyph-dark.svg" alt=""><h1>harvester settings</h1></header>
+      <p>These paths stay on this computer. Authentication remains in Firefox; harvester never stores cookies.</p>
+      <form id="settings-form">
+        <label for="archive-root">Output folder</label>
+        <input id="archive-root" name="archive_root" type="text" required autocomplete="off" spellcheck="false">
+        <label for="firefox-profile">Firefox profile folder</label>
+        <input id="firefox-profile" name="firefox_profile" type="text" required autocomplete="off" spellcheck="false">
+        <button id="save" type="submit">Save settings</button>
+      </form>
+      <p id="status" role="status">Loading local settings…</p>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

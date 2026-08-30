@@ -46,6 +46,10 @@ button {
   margin: 12px 0 0;
 }
 
+.secondary {
+  margin-top: 14px;
+}
+
 @media (prefers-color-scheme: dark) {
   header img { content: url("icons/glyph-light.svg"); }
 }

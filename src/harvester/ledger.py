@@ -108,6 +108,40 @@ def set_item_status(
     return record
 
 
+def record_completed_item(
+    ledger_path: Path,
+    source: str,
+    source_id: str,
+    source_url: str,
+    archive_directory: Path,
+) -> dict[str, Any]:
+    """Record one explicit harvest without weakening an existing retirement."""
+    if ledger_path.exists():
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    else:
+        ledger = {"schema_version": 1, "items": {}}
+    key = identity_key(source, source_id)
+    previous = ledger["items"].get(key, {})
+    if previous.get("status") in {"retired-used", "retired-deleted"}:
+        return previous
+    now = datetime.now(timezone.utc).isoformat()
+    record = {
+        **previous,
+        "source": source,
+        "source_id": source_id,
+        "source_url": source_url,
+        "status": "complete",
+        "status_updated_at": now,
+        "archive_directory": str(archive_directory),
+    }
+    record.pop("reason", None)
+    ledger["items"][key] = record
+    ledger["updated_at"] = now
+    ledger["summary"] = _summary(ledger["items"])
+    _atomic_json(ledger_path, ledger)
+    return record
+
+
 def identity_key(source: str, source_id: str) -> str:
     return f"{source}:{source_id}"
 
