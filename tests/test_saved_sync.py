@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.saved import IncrementalBoundaryError, merge_incremental_index
+from harvest.saved import IncrementalBoundaryError, audio_metadata_from_node, merge_incremental_index
 
 
 def item(source_id: str) -> dict[str, object]:
@@ -66,3 +66,35 @@ class SavedSyncTests(unittest.TestCase):
         with self.assertRaises(IncrementalBoundaryError):
             merge_incremental_index(incomplete, [item("a")])
 
+    def test_reads_licensed_music_from_existing_post_node(self) -> None:
+        node = {
+            "clips_metadata": {
+                "audio_type": "licensed_music",
+                "music_info": {
+                    "music_asset_info": {
+                        "display_artist": "Magazine 60",
+                        "title": "Don Quichotte",
+                    }
+                },
+            }
+        }
+        self.assertEqual(audio_metadata_from_node(node), {
+            "label": "Don Quichotte",
+            "title": "Don Quichotte",
+            "artist": "Magazine 60",
+            "is_original": False,
+        })
+
+    def test_marks_original_audio_without_inventing_song_data(self) -> None:
+        node = {
+            "clips_metadata": {
+                "audio_type": "original_sounds",
+                "original_sound_info": {"original_audio_title": "Original audio"},
+            }
+        }
+        self.assertEqual(audio_metadata_from_node(node), {
+            "label": "Original audio",
+            "title": None,
+            "artist": None,
+            "is_original": True,
+        })

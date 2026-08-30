@@ -69,7 +69,9 @@ def harvest_oldest(
         record.pop("error", None)
         _atomic_write(batch_path, batch)
         try:
-            destination = harvest_instagram_url(record["source_url"], firefox_profile, archive_root)
+            destination = harvest_instagram_url(
+                record["source_url"], firefox_profile, archive_root, record.get("audio")
+            )
         except AcquisitionError as error:
             record["status"] = "failed"
             record["error"] = str(error)

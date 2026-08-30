@@ -55,13 +55,7 @@ def enumerate_saved(firefox_profile: Path, destination: Path) -> dict[str, Any]:
     newest_first: list[dict[str, Any]] = []
     try:
         for position, post in enumerate(profile.get_saved_posts(), start=1):
-            newest_first.append({
-                "source": "instagram",
-                "source_id": post.shortcode,
-                "source_url": f"https://www.instagram.com/p/{post.shortcode}/",
-                "post_date": post.date_utc.isoformat(),
-                "saved_position_newest_first": position,
-            })
+            newest_first.append(_saved_item(post, position))
             if position % 12 == 0:
                 _write_index(destination, newest_first, complete=False)
     except Exception as error:
@@ -197,15 +191,49 @@ def _saved_posts(firefox_profile: Path) -> Iterable[dict[str, Any]]:
 
     def items() -> Iterable[dict[str, Any]]:
         for position, post in enumerate(profile.get_saved_posts(), start=1):
-            yield {
-                "source": "instagram",
-                "source_id": post.shortcode,
-                "source_url": f"https://www.instagram.com/p/{post.shortcode}/",
-                "post_date": post.date_utc.isoformat(),
-                "saved_position_newest_first": position,
-            }
+            yield _saved_item(post, position)
 
     return items()
+
+
+def _saved_item(post: Any, position: int) -> dict[str, Any]:
+    return {
+        "source": "instagram",
+        "source_id": post.shortcode,
+        "source_url": f"https://www.instagram.com/p/{post.shortcode}/",
+        "post_date": post.date_utc.isoformat(),
+        "saved_position_newest_first": position,
+        "audio": audio_metadata_from_node(getattr(post, "_node", {})),
+    }
+
+
+def audio_metadata_from_node(node: dict[str, Any]) -> dict[str, Any]:
+    """Read only Instagram-provided attribution already present in a Saved post node."""
+
+    clips = node.get("clips_metadata") if isinstance(node, dict) else {}
+    clips = clips if isinstance(clips, dict) else {}
+    music_info = clips.get("music_info")
+    music_info = music_info if isinstance(music_info, dict) else {}
+    asset = music_info.get("music_asset_info")
+    asset = asset if isinstance(asset, dict) else {}
+    original_info = clips.get("original_sound_info")
+    original_info = original_info if isinstance(original_info, dict) else {}
+
+    title = _text(asset.get("title"))
+    artist = _text(asset.get("display_artist"))
+    original_title = _text(original_info.get("original_audio_title"))
+    is_original = clips.get("audio_type") == "original_sounds" or bool(original_info)
+    label = original_title if is_original else title
+    return {
+        "label": label,
+        "title": None if is_original else title,
+        "artist": None if is_original else artist,
+        "is_original": is_original,
+    }
+
+
+def _text(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _write_index(destination: Path, newest_first: list[dict[str, Any]], complete: bool) -> dict[str, Any]:

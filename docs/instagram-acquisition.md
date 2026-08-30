@@ -57,6 +57,11 @@ The first eight bundles predate this field and cannot be reliably backfilled
 from their retained metadata alone. Refreshing those values is a separate,
 explicitly authorized Instagram operation.
 
+Future Saved discovery reads licensed-music attribution from the structured post
+object Instagram already returned (`clips_metadata.music_info.music_asset_info`)
+and carries it into the later bundle. This adds no attribution-only request.
+Older index entries are not revisited, and missing attribution remains null.
+
 This is a technical feasibility route, not a supported Instagram integration.
 Instagram says automated collection without permission violates its terms, and
 third-party downloader behavior can break when Instagram changes. Use should be

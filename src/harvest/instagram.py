@@ -26,7 +26,12 @@ class AcquisitionError(RuntimeError):
     pass
 
 
-def harvest_instagram_url(url: str, browser_profile: Path, archive_root: Path) -> Path:
+def harvest_instagram_url(
+    url: str,
+    browser_profile: Path,
+    archive_root: Path,
+    platform_audio: dict[str, Any] | None = None,
+) -> Path:
     """Acquire exactly one supplied Instagram URL through one explicit Firefox profile."""
 
     match = POST_URL.fullmatch(url)
@@ -87,7 +92,7 @@ def harvest_instagram_url(url: str, browser_profile: Path, archive_root: Path) -
                 "extractor": info.get("extractor"),
                 "webpage_url": info.get("webpage_url"),
                 "display_id": info.get("display_id"),
-                "audio": audio_metadata_from_info(info),
+                "audio": _preferred_audio_metadata(platform_audio, info),
             },
         )
         return _build_bundle(item, media_files, archive_root)
@@ -115,6 +120,14 @@ def audio_metadata_from_info(info: dict[str, Any]) -> dict[str, Any]:
         "artist": None if original else artist,
         "is_original": original,
     }
+
+
+def _preferred_audio_metadata(
+    platform_audio: dict[str, Any] | None, info: dict[str, Any]
+) -> dict[str, Any]:
+    if platform_audio and any(platform_audio.get(key) for key in ("label", "title", "artist", "is_original")):
+        return platform_audio
+    return audio_metadata_from_info(info)
 
 
 def _first_text(*values: Any) -> str | None:
