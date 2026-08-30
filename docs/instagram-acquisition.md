@@ -9,8 +9,10 @@ proof completed 2026-08-29. The active Firefox profile was supplied directly to
 Post `DcSvEX4IWu7` produced one deterministic archive directory containing the
 preserved MP4, byte-identical retained video, a 48 kHz/24-bit stereo PCM WAV, and
 versioned provenance metadata. A second acquisition resolved to the same item
-directory without adding duplicate files. Manual DAW import remains the final
-human acceptance check.
+directory without adding duplicate files. On 2026-08-29 a later generated WAV
+was imported into the user's real audio workflow and confirmed at 48 kHz,
+24-bit stereo with the correct duration, waveform, and readable filename,
+completing the human acceptance check.
 
 ## Finding
 

@@ -92,8 +92,10 @@ schema version and the harvestrr/FFmpeg tool versions needed for provenance.
 - 2026-08-29: first authorized supplied-URL acquisition completed for
   `DcSvEX4IWu7`; repeat acquisition targeted the same directory with no duplicate
   files.
-- Pending: manual drag-and-play verification of `audio.wav` in the user's music
-  workflow, followed by a small supplied-URL mixed-media test set.
+- 2026-08-29: the user imported
+  `redneck-vampire_michael-ray-vanmeter__audio.wav` into the real music workflow
+  and confirmed its readable filename, correct duration and waveform, and
+  48 kHz/24-bit/stereo format. The V0 creative-use acceptance target is complete.
 - 2026-08-29: enumerated 399 Saved IDs into a private local JSON index and ran a
   strictly paced oldest-ten batch. Nine posts completed; one eight-image carousel
   was recorded as failed/deferred because audio/video material is the priority.

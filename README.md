@@ -15,12 +15,14 @@ account unless the user explicitly authorizes that step.
 
 ## Current status
 
-- The V0 output contract and acceptance test are defined.
+- The V0 output contract and real-workflow acceptance test are complete.
 - Source-agnostic item, archive, and media-processing primitives are present.
 - Single-URL Instagram acquisition is isolated behind a source adapter and has
   completed its first authorized live proof on 2026-08-29.
 - Saved discovery uses a private Git-ignored JSON index; a first oldest-ten batch
   completed nine audio/video bundles and deferred one image-only carousel.
+- A generated readable WAV was verified in the user's real audio workflow as
+  48 kHz, 24-bit stereo with the correct duration and waveform.
 - Incremental Saved sync scans newest-first and stops after five consecutive
   ledgered IDs, so routine updates do not rescan the complete collection.
 - No code from RADIO HARVEST is used or required.
