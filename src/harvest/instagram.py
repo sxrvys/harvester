@@ -15,7 +15,7 @@ from .model import HarvestItem
 from .naming import propose_name
 
 
-POST_URL = re.compile(r"^https://(?:www\.)?instagram\.com/(?:p|reel)/([A-Za-z0-9_-]+)/?(?:\?.*)?$")
+POST_URL = re.compile(r"^https://(?:www\.)?instagram\.com/(?:p|reel|reels)/([A-Za-z0-9_-]+)/?(?:\?.*)?$")
 AUTH_FAILURE_MARKERS = (
     "login required", "log in", "checkpoint", "challenge", "authentication",
     "http error 401", "http error 403", "http error 429", "too many requests",

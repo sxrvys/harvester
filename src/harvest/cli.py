@@ -61,6 +61,13 @@ def main() -> int:
     lifecycle.add_argument("--source", default="instagram")
     lifecycle.add_argument("--ledger", type=Path, default=Path("state/item-ledger.json"))
     lifecycle.add_argument("--reason")
+    delete = subparsers.add_parser("archive-delete", help="move one verified bundle to an explicit Trash directory")
+    delete.add_argument("source_id")
+    delete.add_argument("--source", default="instagram")
+    delete.add_argument("--ledger", type=Path, default=Path("state/item-ledger.json"))
+    delete.add_argument("--archive-root", type=Path, default=Path("archive"))
+    delete.add_argument("--trash-root", type=Path, required=True)
+    delete.add_argument("--reason", default="User removed from archive")
     arguments = parser.parse_args()
     if arguments.command == "instagram":
         from .instagram import harvest_instagram_url
@@ -184,6 +191,19 @@ def main() -> int:
             arguments.reason,
         )
         print(f"{arguments.source}:{arguments.source_id} -> {record['status']}")
+        return 0
+    if arguments.command == "archive-delete":
+        from .deletion import delete_archive_item
+
+        result = delete_archive_item(
+            arguments.ledger,
+            arguments.archive_root,
+            arguments.trash_root,
+            arguments.source_id,
+            arguments.source,
+            arguments.reason,
+        )
+        print(f"{arguments.source}:{arguments.source_id} -> {result['status']} ({result['destination']})")
         return 0
     parser.print_help()
     return 0

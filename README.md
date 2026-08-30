@@ -60,8 +60,22 @@ The bundle folder, metadata, Saved index, and `state/item-ledger.json` retain th
 stable identity. File presence and filenames are never used to decide whether an
 item is eligible for reacquisition.
 
-The first approved migration has been applied: bundle folders retain Instagram
-IDs, while all 25 remaining media assets use clean readable role-based names.
+Approved naming migrations keep Instagram IDs on bundle folders while giving
+all retained media assets clean, readable role-based names.
+
+## Recoverable deletion
+
+The core deletion action requires an exact ledgered item and an explicit Trash
+destination. It verifies the bundle's embedded source identity, moves only that
+bundle, and durably records `retired-deleted` so it cannot be reacquired:
+
+```sh
+harvest archive-delete SOURCE_ID --trash-root /path/to/trash
+```
+
+The operation refuses missing bundles, identity mismatches, paths outside the
+archive root, and existing Trash destinations. This command is the backend
+contract intended for a later front-end Delete control.
 
 Live acquisition requires an exact URL, an exact Firefox profile path, and the
 user's explicit authorization for that run. It is intentionally not configured
