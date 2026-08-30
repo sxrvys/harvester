@@ -7,7 +7,7 @@ dist/
 build/
 *.egg-info/
 
-# harvestrr output and all authentication material are local-only.
+# harvester output and all authentication material are local-only.
 archive/*
 !archive/.gitkeep
 state/*

@@ -1,6 +1,6 @@
-# harvestrr
+# harvester
 
-harvestrr is a local-first tool for turning media the user intentionally saved
+harvester is a local-first tool for turning media the user intentionally saved
 online into durable, predictable creative-media bundles.
 
 Its privacy, ownership, and
@@ -30,6 +30,22 @@ account unless the user explicitly authorizes that step.
 See [`docs/v0-technical-plan.md`](docs/v0-technical-plan.md) and
 [`docs/instagram-acquisition.md`](docs/instagram-acquisition.md).
 
+## Browser extension direction
+
+The intended interface is a small Firefox-first WebExtension backed by the
+local harvester engine through Native Messaging. Its primary action is an
+explicit **Harvest this** command for the current page or pasted URL. It does
+not inspect traffic, collect browsing history, retain cookies, send telemetry,
+or become a media-library application.
+
+The agreed interface, permission boundary, resource limits, and native message
+contract are recorded in
+[`docs/browser-extension-spec.md`](docs/browser-extension-spec.md).
+
+The approved glyph master and an editable theme-adaptive SVG live under
+[`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it
+can render black in light browser themes and white in dark browser themes.
+
 ## Local checks
 
 Requires Python 3.11+ and FFmpeg/FFprobe on `PATH`.
@@ -41,9 +57,9 @@ python3 -m unittest discover -s tests -v
 Offline archive checks and naming review:
 
 ```sh
-harvest audit --archive-root archive
-harvest names-preview --archive-root archive
-harvest batch-review --batch state/BATCH.json
+harvester audit --archive-root archive
+harvester names-preview --archive-root archive
+harvester batch-review --batch state/BATCH.json
 ```
 
 The audit is read-only. Naming preview never renames a bundle; it shows proposed
@@ -81,7 +97,7 @@ destination. It verifies the bundle's embedded source identity, moves only that
 bundle, and durably records `retired-deleted` so it cannot be reacquired:
 
 ```sh
-harvest archive-delete SOURCE_ID --trash-root /path/to/trash
+harvester archive-delete SOURCE_ID --trash-root /path/to/trash
 ```
 
 The operation refuses missing bundles, identity mismatches, paths outside the

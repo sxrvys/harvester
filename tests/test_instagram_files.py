@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.instagram import _media_files
+from harvester.instagram import _media_files
 
 
 class InstagramFileTests(unittest.TestCase):

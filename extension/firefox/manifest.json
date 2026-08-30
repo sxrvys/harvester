@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "harvester",
+  "version": "0.0.1",
+  "description": "Send explicitly selected media to the local harvester companion.",
+  "permissions": ["activeTab", "nativeMessaging"],
+  "browser_action": {
+    "default_title": "harvester",
+    "default_popup": "popup.html",
+    "default_icon": "icons/glyph-dark.svg",
+    "theme_icons": [
+      {
+        "light": "icons/glyph-light.svg",
+        "dark": "icons/glyph-dark.svg",
+        "size": 32
+      }
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "harvester@localhost",
+      "strict_min_version": "109.0"
+    }
+  }
+}

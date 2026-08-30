@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.archive import Archive
-from harvest.model import HarvestItem
+from harvester.archive import Archive
+from harvester.model import HarvestItem
 
 
 class ArchiveTests(unittest.TestCase):

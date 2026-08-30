@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.review import build_batch_review, render_batch_review
+from harvester.review import build_batch_review, render_batch_review
 
 
 class ReviewTests(unittest.TestCase):

@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.deletion import ArchiveDeletionError, delete_archive_item
+from harvester.deletion import ArchiveDeletionError, delete_archive_item
 
 
 class DeletionTests(unittest.TestCase):

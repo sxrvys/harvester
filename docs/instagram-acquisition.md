@@ -2,7 +2,7 @@
 
 Status: public-documentation spike and one explicitly authorized single-URL
 proof completed 2026-08-29. The active Firefox profile was supplied directly to
-`yt-dlp`; no cookies were exported, printed, serialized by harvestrr, or committed.
+`yt-dlp`; no cookies were exported, printed, serialized by harvester, or committed.
 
 ## First live result
 
@@ -37,7 +37,7 @@ Separate discovery from acquisition:
    `yt-dlp` against that one URL and reads the existing authorized session via
    `--cookies-from-browser`. The browser and profile must be named explicitly at
    runtime; no default browser probing is allowed.
-3. Cookies are read only by the downloader for that run. harvestrr does not export,
+3. Cookies are read only by the downloader for that run. harvester does not export,
    copy, log, serialize, or commit them. Downloader stdout/stderr is sanitized
    before it becomes application logging.
 4. The adapter stages downloader output and machine-readable metadata locally.
@@ -51,7 +51,7 @@ Separate discovery from acquisition:
 For each new harvest, `metadata.json` includes a predictable
 `item.source_metadata.audio` object with `label`, `title`, `artist`, and
 `is_original` fields. Values come only from metadata supplied by Instagram and
-the downloader; harvestrr does not infer a song from the waveform. A platform
+the downloader; harvester does not infer a song from the waveform. A platform
 label such as `Original audio` is preserved while its song title and artist stay
 null. If Instagram supplies no attribution, the nullable fields remain null.
 

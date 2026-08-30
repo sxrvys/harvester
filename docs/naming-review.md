@@ -8,7 +8,7 @@ The stable contract is:
 
 The Instagram ID is always retained. Automatic naming is appropriate only when
 the caption contains explicit structure. Prose-only captions receive an editorial
-proposal for review; harvestrr should not pretend that arbitrary word truncation is
+proposal for review; harvester should not pretend that arbitrary word truncation is
 a meaningful summary.
 
 | Source ID | Proposed readable name | Evidence |
@@ -26,4 +26,4 @@ a meaningful summary.
 
 The first four can be derived by deterministic structural rules. The remaining
 six are good editorial proposals, but require either user approval or a later,
-explicit entity/keyphrase extractor before harvestrr applies them automatically.
+explicit entity/keyphrase extractor before harvester applies them automatically.

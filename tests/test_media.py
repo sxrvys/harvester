@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.media import extract_wav, has_audio, probe
+from harvester.media import extract_wav, has_audio, probe
 
 
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg tools required")

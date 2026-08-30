@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.saved import IncrementalBoundaryError, audio_metadata_from_node, merge_incremental_index
+from harvester.saved import IncrementalBoundaryError, audio_metadata_from_node, merge_incremental_index
 
 
 def item(source_id: str) -> dict[str, object]:

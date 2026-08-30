@@ -3,7 +3,7 @@
 ## Acceptance target
 
 Given the URL of one Instagram post already saved by the user, and only after
-the user authorizes use of an existing logged-in browser session, harvestrr creates
+the user authorizes use of an existing logged-in browser session, harvester creates
 one deterministic local bundle. Re-running the same source ID updates that same
 bundle rather than creating another uncontrolled copy.
 
@@ -12,10 +12,10 @@ The manual acceptance run must cover these checks:
 1. The operator supplies one canonical post/reel URL.
 2. The Instagram adapter retrieves all media belonging to that post through the
    authorized session and writes into a temporary staging directory.
-3. harvestrr derives a stable item key from `instagram` plus the post shortcode.
+3. harvester derives a stable item key from `instagram` plus the post shortcode.
 4. Every acquired source file is copied byte-for-byte into `original/` before
    derivatives are made.
-5. Every video is retained. When it has audio, harvestrr writes `audio.wav` as
+5. Every video is retained. When it has audio, harvester writes `audio.wav` as
    stereo, 48 kHz, 24-bit PCM (`pcm_s24le`). If multiple videos contain audio,
    their WAV names are indexed rather than silently choosing one.
 6. Image and carousel files are retained in source order.
@@ -71,7 +71,7 @@ key prevents duplicate item directories.
 
 Acquired-file records include archive-relative path, role, MIME/media kind,
 byte size, SHA-256, and probed stream facts. `metadata.json` also carries a
-schema version and the harvestrr/FFmpeg tool versions needed for provenance.
+schema version and the harvester/FFmpeg tool versions needed for provenance.
 
 ## Implementation sequence
 
@@ -154,7 +154,7 @@ Routine sync is append-only and does not enumerate the complete collection:
 Natural end-of-collection is also a valid boundary for a small collection. If
 authentication, pagination, or networking fails before either boundary, the
 canonical ledger remains unchanged and `saved-sync-partial.json` records that an
-incomplete scan occurred. harvestrr does not model unsaves: the ledger and local
+incomplete scan occurred. harvester does not model unsaves: the ledger and local
 archive are intentionally durable and append-only.
 
 ## Explicitly deferred

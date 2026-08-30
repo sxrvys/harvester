@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.model import HarvestItem, title_from_caption
+from harvester.model import HarvestItem, title_from_caption
 
 
 class HarvestItemTests(unittest.TestCase):

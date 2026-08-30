@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024"
+     height="1024"
+     viewBox="0 0 1024 1024"
+     fill="none">
+  <title>harvester glyph</title>
+  <desc>A scythe forming the base and diagonal edge of a field of expanding signal arcs.</desc>
+  <style>
+    :root { color: #111111; }
+    @media (prefers-color-scheme: dark) { :root { color: #ffffff; } }
+  </style>
+
+  <g id="scythe" fill="currentColor">
+    <path id="blade"
+          d="M78 748
+             C260 874 560 914 858 768
+             C875 760 889 769 892 787
+             C896 812 883 846 866 869
+             C601 1000 286 934 102 807
+             C77 790 64 766 78 748 Z"/>
+    <path id="handle"
+          d="M837 769
+             L579 178
+             C568 153 579 125 605 115
+             C632 105 659 119 669 145
+             L902 758
+             C911 784 898 812 872 821
+             C846 830 820 817 812 791 Z"/>
+  </g>
+
+  <g id="signal"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="38"
+     stroke-linecap="round">
+    <circle id="signal-apex" cx="457" cy="223" r="20" fill="currentColor" stroke="none"/>
+    <path id="signal-1" d="M392 318 C434 352 489 351 530 310"/>
+    <path id="signal-2" d="M326 414 C414 486 556 475 632 390"/>
+    <path id="signal-3" d="M258 518 C390 631 606 604 715 493"/>
+    <path id="signal-4" d="M190 627 C373 789 661 754 805 606"/>
+  </g>
+</svg>

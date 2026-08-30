@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light dark;
+  font: menu;
+  background: Canvas;
+  color: CanvasText;
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  min-width: 300px;
+  padding: 16px;
+}
+
+header {
+  align-items: center;
+  display: flex;
+  font-size: 18px;
+  font-weight: 650;
+  gap: 9px;
+}
+
+header img {
+  height: 26px;
+  width: 26px;
+}
+
+.page,
+.status {
+  overflow-wrap: anywhere;
+}
+
+.page {
+  color: GrayText;
+  margin: 14px 0;
+}
+
+button {
+  font: inherit;
+  padding: 8px 12px;
+  width: 100%;
+}
+
+.status {
+  font-size: 0.9em;
+  margin: 12px 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  header img { content: url("icons/glyph-light.svg"); }
+}

@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.ledger import set_item_status, sync_item_ledger
+from harvester.ledger import set_item_status, sync_item_ledger
 
 
 class LedgerTests(unittest.TestCase):

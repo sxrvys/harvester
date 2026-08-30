@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "harvest-local"
+name = "harvester"
 version = "0.0.1"
 description = "Local-first creative media harvesting"
 requires-python = ">=3.11"
@@ -13,7 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-harvest = "harvest.cli:main"
+harvester = "harvester.cli:main"
+harvester-native-host = "harvester.native_host:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

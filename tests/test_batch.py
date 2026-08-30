@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.batch import _select_oldest_unprocessed, harvest_oldest, new_batch_path
+from harvester.batch import _select_oldest_unprocessed, harvest_oldest, new_batch_path
 
 
 class BatchTests(unittest.TestCase):

@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.naming import apply_asset_migration, preview_asset_migration, propose_name
+from harvester.naming import apply_asset_migration, preview_asset_migration, propose_name
 
 
 class NamingTests(unittest.TestCase):

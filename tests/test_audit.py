@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.audit import audit_archive
+from harvester.audit import audit_archive
 
 
 def sha256(data: bytes) -> str:
@@ -37,7 +37,7 @@ def make_bundle(root: Path, name: str, source_id: str, data: bytes = b"media") -
 
 
 class AuditTests(unittest.TestCase):
-    @patch("harvest.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
+    @patch("harvester.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
     def test_valid_bundle_passes(self, _probe: object) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -46,7 +46,7 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(report["summary"]["errors"], 0)
             self.assertEqual(report["summary"]["warnings"], 0)
 
-    @patch("harvest.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
+    @patch("harvester.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
     def test_detects_hash_size_unrecorded_and_duplicate_identity(self, _probe: object) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

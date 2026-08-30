@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvest.instagram import POST_URL, audio_metadata_from_info
+from harvester.instagram import POST_URL, audio_metadata_from_info
 
 
 class InstagramAdapterTests(unittest.TestCase):

@@ -15,7 +15,7 @@ from .model import HarvestItem
 
 
 class Archive:
-    """Deterministic filesystem archive for harvestrr items."""
+    """Deterministic filesystem archive for harvester items."""
 
     def __init__(self, root: Path) -> None:
         self.root = root

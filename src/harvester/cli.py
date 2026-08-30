@@ -8,8 +8,8 @@ from . import __version__
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="harvest",
-        description="harvestrr V0 (live Instagram acquisition requires explicit authorization)",
+        prog="harvester",
+        description="harvester V0 (live Instagram acquisition requires explicit authorization)",
     )
     parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command")

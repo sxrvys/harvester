@@ -1,18 +1,18 @@
-# harvestrr Project Constitution
+# harvester Project Constitution
 
-harvestrr exists to increase the user's ownership, agency, and creative access to
+harvester exists to increase the user's ownership, agency, and creative access to
 media they intentionally choose to preserve. It must never turn the user, their
 attention, or their archive into a product.
 
 ## User ownership
 
 - The user controls the archive, metadata, derivatives, configuration, and state
-  created by harvestrr.
+  created by harvester.
 - Outputs use ordinary folders, media files, and inspectable JSON.
-- Removing harvestrr must not make an existing archive inaccessible or unusable.
-- harvestrr creates no artificial dependency on a hosted service, subscription,
+- Removing harvester must not make an existing archive inaccessible or unusable.
+- harvester creates no artificial dependency on a hosted service, subscription,
   account, proprietary database, or continued availability of the project.
-- harvestrr does not alter the ownership or copyright status of source media. The
+- harvester does not alter the ownership or copyright status of source media. The
   user remains responsible for acquiring and using media lawfully.
 
 ## Privacy
@@ -48,10 +48,10 @@ Explicit user action
 
 ## No coercive product mechanics
 
-harvestrr must not introduce:
+harvester must not introduce:
 
 - Watermarks, degraded exports, artificial quotas, or paid removal of limitations
-  imposed by harvestrr itself.
+  imposed by harvester itself.
 - Remote kill switches or server-dependent access to local archives.
 - Dark patterns, lock-in, hidden collection, or permissions unrelated to the
   user's explicit request.
@@ -72,4 +72,4 @@ The standing design question is:
 > Does this feature serve the user's archive, or does it create leverage over the
 > user?
 
-If it creates leverage, it does not belong in harvestrr.
+If it creates leverage, it does not belong in harvester.
