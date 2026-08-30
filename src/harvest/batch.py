@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .instagram import AcquisitionError, harvest_instagram_url
+from .ledger import TERMINAL_STATUSES, identity_key
 
 
 class BatchError(RuntimeError):
@@ -24,6 +25,7 @@ def harvest_oldest(
     count: int = 10,
     min_delay: float = 10.0,
     max_delay: float = 15.0,
+    item_ledger_path: Path | None = None,
 ) -> dict[str, Any]:
     if count < 1:
         raise ValueError("count must be positive")
@@ -33,9 +35,9 @@ def harvest_oldest(
     index = json.loads(index_path.read_text(encoding="utf-8"))
     if not index.get("complete"):
         raise BatchError("Saved index is incomplete; refusing to guess the oldest items")
-    selected = index["items"][:count]
+    selected = _select_oldest_unprocessed(index, item_ledger_path, count)
     if len(selected) < count:
-        raise BatchError(f"Saved index contains only {len(selected)} items")
+        raise BatchError(f"Saved index contains only {len(selected)} eligible unprocessed items")
 
     if batch_path.exists():
         batch = json.loads(batch_path.read_text(encoding="utf-8"))
@@ -89,6 +91,23 @@ def harvest_oldest(
             time.sleep(delay)
 
     return batch
+
+
+def _select_oldest_unprocessed(
+    index: dict[str, Any], item_ledger_path: Path | None, count: int
+) -> list[dict[str, Any]]:
+    if item_ledger_path is None:
+        return index["items"][:count]
+    ledger = json.loads(item_ledger_path.read_text(encoding="utf-8"))
+    selected: list[dict[str, Any]] = []
+    for item in index["items"]:
+        record = ledger.get("items", {}).get(identity_key(item["source"], item["source_id"]), {})
+        if record.get("status") in TERMINAL_STATUSES:
+            continue
+        selected.append(item)
+        if len(selected) == count:
+            break
+    return selected
 
 
 def _append_manual_review(destination: Path, record: dict[str, Any], error: str) -> None:

@@ -33,6 +33,7 @@ def main() -> int:
     batch.add_argument("--index", type=Path, default=Path("state/saved-index.json"))
     batch.add_argument("--state", type=Path, default=Path("state/batch-oldest-10.json"))
     batch.add_argument("--archive-root", type=Path, default=Path("archive"))
+    batch.add_argument("--item-ledger", type=Path, default=Path("state/item-ledger.json"))
     batch.add_argument("--count", type=int, default=10)
     batch.add_argument("--min-delay", type=float, default=10.0)
     batch.add_argument("--max-delay", type=float, default=15.0)
@@ -112,6 +113,7 @@ def main() -> int:
             arguments.count,
             arguments.min_delay,
             arguments.max_delay,
+            arguments.item_ledger,
         )
         complete = sum(item["status"] == "complete" for item in result["items"])
         failed = sum(item["status"] == "failed" for item in result["items"])
