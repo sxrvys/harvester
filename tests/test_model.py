@@ -18,6 +18,12 @@ class HarvestItemTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             HarvestItem("instagram", "abc", "file:///tmp/post")
 
+    def test_local_item_may_omit_source_url_without_storing_a_path(self) -> None:
+        item = HarvestItem("local", "abc123", None, title="clip")
+        self.assertIsNone(item.source_url)
+        with self.assertRaises(ValueError):
+            HarvestItem("instagram", "abc123", None)
+
     def test_caption_produces_readable_directory_with_stable_id(self) -> None:
         item = HarvestItem(
             "instagram",

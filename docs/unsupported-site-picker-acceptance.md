@@ -17,6 +17,24 @@ WebM, a playable WebM derivative, a 48 kHz/24-bit stereo WAV, and metadata whose
 recorded sizes and SHA-256 hashes match. The one-off proof created no lifecycle
 ledger entry. The full automated suite passed 61 tests after acceptance.
 
+A later Archive.org proof successfully selected and harvested the player-owned
+`DuckandC1951_512kb` MP4, but the site's player CSS suppressed the crosshair and
+outline. Picker feedback now uses temporary scoped `!important` cursor, outline,
+and shadow styles and restores every prior inline value and priority on cleanup;
+live confirmation of that visual fix remains pending.
+
+Archive.org then confirmed that its interactive control layer can sit above the
+actual `<video>`. Highlighting now uses `elementsFromPoint` only at the user's
+current pointer coordinates to find media beneath such an overlay. This is a
+cursor-local hit test, not page enumeration; live confirmation remains pending.
+
+The cursor-local test made the explicit **Harvest media** control visible on the
+Archive.org player, while its clipping still hid the element-owned outline. The
+picker now also draws a pointer-transparent fixed border inside the selected
+media rectangle, independent of player overflow/clipping. Firefox acceptance on
+the Archive.org player confirmed the explicit button and green in-player border
+both appear correctly and Escape removes the picker without harvesting again.
+
 ## Successful proof
 
 On MDN's top-level simple-video example (or one equivalent simple HTTP(S) page)

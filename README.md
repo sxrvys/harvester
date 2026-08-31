@@ -8,23 +8,27 @@ least-privilege commitments are defined in
 [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md). Current and intended
 licensing status is recorded in [`LICENSING.md`](LICENSING.md).
 
-V0 has one acceptance target: transform one user-identified Instagram post into
-one local bundle containing preserved originals, useful derivatives, and
-provenance metadata. The project does not access a browser session or Instagram
-account unless the user explicitly authorizes that step.
+The current Firefox prototype turns one explicitly selected Instagram, YouTube,
+or Reddit post—or one visible media element or local file—into a local bundle
+containing preserved originals, useful derivatives, and provenance metadata.
+Instagram also has a separate, ledger-backed archival workflow for the user's
+Saved collection. The project does not access a browser session or account unless
+the user explicitly initiates an operation that requires it.
 
 ## Current status
 
-- The V0 output contract and real-workflow acceptance test are complete.
-- Source-agnostic item, archive, and media-processing primitives are present.
-- Single-URL Instagram acquisition is isolated behind a source adapter and has
-  completed its first authorized live proof on 2026-08-29.
-- Saved discovery uses a private Git-ignored JSON index; a first oldest-ten batch
-  completed nine audio/video bundles and deferred one image-only carousel.
-- A generated readable WAV was verified in the user's real audio workflow as
-  48 kHz, 24-bit stereo with the correct duration and waveform.
-- Incremental Saved sync scans newest-first and stops after five consecutive
-  ledgered IDs, so routine updates do not rescan the complete collection.
+- Firefox and its native companion have completed live acceptance for one-off
+  Instagram, YouTube, and Reddit harvesting.
+- The bounded visible-media picker has passed on an unsupported iframe-based page.
+- One-file local harvesting has passed with a Finder-selected Archive.org video;
+  its preserved original and playable derivative were byte-identical to the source.
+- Audio derivatives support five global presets: two WAV, one FLAC, and two MP3.
+- The Instagram Archival Harvest screen can incrementally scan Saved posts and run
+  explicitly initiated, paced, oldest-first batches against its private ledger.
+- Settings can choose an output folder through Finder and automatically detect
+  Firefox's declared default profile, with manual profile editing kept advanced.
+- All 86 automated tests pass. Packaging, signing, and distribution remain paused
+  until core functionality receives final review and explicit approval.
 - No code from RADIO HARVEST is used or required.
 
 See [`docs/v0-technical-plan.md`](docs/v0-technical-plan.md) and
@@ -70,6 +74,42 @@ playlists, search results, recommendations, or account collections.
 The first live Firefox acceptance passed on 2026-08-30 with YouTube video
 `URwmZq70_DU`, producing a preserved WebM, playable WebM, and 48 kHz/24-bit
 stereo WAV without adding an archival-ledger entry.
+
+Canonical Reddit post pages use a separate bounded adapter behind **Harvest
+this**. It accepts one `/r/.../comments/<post-id>/<slug>/` URL, acquires at most
+one attached media result, applies the same resource limits, and never enumerates
+feeds, subreddits, profiles, comments, Saved collections, or related posts.
+Its first live Firefox acceptance passed on 2026-08-30 with a single Reddit post,
+producing a preserved MP4, identical playable MP4, and configured WAV derivative
+without adding an archival-ledger entry.
+
+Settings provide one global audio-derivative preset for future bundles:
+Production WAV (48 kHz/24-bit), Standard WAV (44.1 kHz/16-bit), FLAC
+(48 kHz/24-bit), MP3 (320 kbps), or MP3 (192 kbps). Production WAV remains the
+default. Harvester preserves the acquired original and generates one audio
+derivative; it does not offer per-harvest choices, video transcoding, or
+retroactive batch conversion. Each derivative records its named encoding preset.
+
+**Harvest local file** opens a native Finder picker and ingests exactly one audio
+or video file. The selected path never enters the extension or metadata; only the
+basename, size, content hash, duration, and media facts are retained. Harvester
+preserves the original, generates the configured audio derivative when applicable,
+and does not accept folders, watch directories, multiple selection, or batch
+conversion. The accepted proof is recorded in
+[`docs/local-file-acceptance.md`](docs/local-file-acceptance.md).
+
+The extension also has a distinct Instagram **Archival Harvest** screen backed by
+the private Saved index and lifecycle ledger. It exposes explicit newest-first
+incremental scanning to a five-known-item boundary and explicit oldest-first
+batches with size 1–25 and randomized 10–300 second delay bounds. Downloads are
+sequential, ordinary failures are not retried, and authentication/rate-limit
+signals stop the batch. This workflow is Instagram-only and remains separate
+from ledger-free one-off harvests.
+
+Acceptance contracts and manual proof results for the newer workflows live in
+[`docs/reddit-single-post-acceptance.md`](docs/reddit-single-post-acceptance.md),
+[`docs/archival-harvest-acceptance.md`](docs/archival-harvest-acceptance.md), and
+[`docs/local-file-acceptance.md`](docs/local-file-acceptance.md).
 
 The approved glyph master and an editable theme-adaptive SVG live under
 [`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it

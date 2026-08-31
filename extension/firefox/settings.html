@@ -9,12 +9,28 @@
   <body>
     <main>
       <header><img src="icons/glyph-dark.svg" alt=""><h1>harvester settings</h1></header>
-      <p>These paths stay on this computer. Authentication remains in Firefox; harvester never stores cookies.</p>
+      <p>Choose where Harvester saves media and how it prepares audio.</p>
       <form id="settings-form">
         <label for="archive-root">Output folder</label>
-        <input id="archive-root" name="archive_root" type="text" required autocomplete="off" spellcheck="false">
-        <label for="firefox-profile">Firefox profile folder</label>
-        <input id="firefox-profile" name="firefox_profile" type="text" required autocomplete="off" spellcheck="false">
+        <div class="path-row">
+          <input id="archive-root" name="archive_root" type="text" required autocomplete="off" spellcheck="false">
+          <button id="choose-output" type="button">Choose folder…</button>
+        </div>
+        <details>
+          <summary>Advanced: Firefox profile</summary>
+          <p>Harvester detects Firefox's default profile automatically. Change this only when using another profile.</p>
+          <label for="firefox-profile">Firefox profile folder</label>
+          <input id="firefox-profile" name="firefox_profile" type="text" required autocomplete="off" spellcheck="false">
+        </details>
+        <label for="audio-preset">Audio derivative</label>
+        <select id="audio-preset" name="audio_preset">
+          <option value="wav_48k_24">Production WAV — 48 kHz / 24-bit</option>
+          <option value="wav_44k_16">Standard WAV — 44.1 kHz / 16-bit</option>
+          <option value="flac_48k_24">FLAC — 48 kHz / 24-bit</option>
+          <option value="mp3_320">MP3 — 320 kbps</option>
+          <option value="mp3_192">MP3 — 192 kbps</option>
+        </select>
+        <p>The selected preset applies to future bundles. Originals are always preserved.</p>
         <button id="save" type="submit">Save settings</button>
       </form>
       <p id="status" role="status">Loading local settings…</p>

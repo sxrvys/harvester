@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Archival Harvest</title>
+    <link rel="stylesheet" href="archive.css">
+  </head>
+  <body>
+    <main>
+      <header><img src="icons/glyph-dark.svg" alt=""><div><h1>Archival Harvest</h1><p>Instagram Saved, oldest first</p></div></header>
+      <section class="counts" aria-label="Archive status">
+        <div><strong id="indexed">—</strong><span>Indexed</span></div>
+        <div><strong id="waiting">—</strong><span>Waiting</span></div>
+        <div><strong id="complete">—</strong><span>Complete</span></div>
+        <div><strong id="deferred">—</strong><span>Deferred</span></div>
+        <div><strong id="retired">—</strong><span>Retired</span></div>
+      </section>
+      <p id="last-scan" class="muted">Last scan unavailable</p>
+      <section>
+        <h2>Update the queue</h2>
+        <p>Scan newest-first until five consecutive known posts prove the existing boundary.</p>
+        <button id="scan" type="button">Scan saved posts</button>
+      </section>
+      <section>
+        <h2>Harvest the oldest waiting posts</h2>
+        <div class="controls">
+          <label>Batch size <input id="count" type="number" min="1" max="25" value="10"></label>
+          <label>Minimum delay (seconds) <input id="min-delay" type="number" min="10" max="300" value="10"></label>
+          <label>Maximum delay (seconds) <input id="max-delay" type="number" min="10" max="300" value="15"></label>
+        </div>
+        <p class="warning"><strong>Account risk:</strong> Automated access may trigger Instagram restrictions or violate platform rules. Larger batches and shorter delays increase that risk. Harvester cannot guarantee account safety. You are responsible for choosing how and whether to proceed.</p>
+        <button id="batch" type="button">Harvest next batch</button>
+      </section>
+      <p id="status" role="status">Checking archival state…</p>
+    </main>
+    <script src="archive.js"></script>
+  </body>
+</html>

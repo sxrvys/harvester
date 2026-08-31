@@ -13,7 +13,7 @@ class HarvestItem:
 
     source: str
     source_id: str
-    source_url: str
+    source_url: str | None
     retrieved_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     author: str | None = None
     posted_at: datetime | None = None
@@ -39,7 +39,10 @@ class HarvestItem:
         for label, value in (("source", self.source), ("source_id", self.source_id)):
             if not value or not all(character.isalnum() or character in "-_" for character in value):
                 raise ValueError(f"{label} must contain only letters, numbers, '-' or '_'")
-        if not self.source_url.startswith(("https://", "http://")):
+        if self.source_url is None:
+            if self.source != "local":
+                raise ValueError("only local items may omit source_url")
+        elif not self.source_url.startswith(("https://", "http://")):
             raise ValueError("source_url must be an HTTP(S) URL")
         if self.retrieved_at.tzinfo is None:
             raise ValueError("retrieved_at must be timezone-aware")

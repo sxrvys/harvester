@@ -12,8 +12,13 @@ header img { height: 34px; width: 34px; }
 h1 { font-size: 24px; }
 form { display: grid; gap: 10px; margin-top: 28px; }
 label { font-weight: 650; margin-top: 8px; }
-input { font: inherit; padding: 9px; }
+input, select { font: inherit; padding: 9px; }
 button { font: inherit; margin-top: 12px; padding: 9px 14px; width: max-content; }
+.path-row { align-items: center; display: grid; gap: 10px; grid-template-columns: 1fr auto; }
+.path-row button { margin-top: 0; }
+details { margin-top: 8px; }
+details input { box-sizing: border-box; margin-top: 8px; width: 100%; }
+summary { cursor: pointer; font-weight: 650; }
 #status { color: GrayText; margin-top: 18px; }
 
 @media (prefers-color-scheme: dark) {

@@ -2,6 +2,7 @@
 
 const NATIVE_APPLICATION = "com.harvester.native";
 let harvestState = {state: "idle", message: "Local companion ready"};
+let archivalState = {state: "idle", message: "Archival Harvest ready"};
 let pickerTimeout = null;
 let pickerTabId = null;
 const stateReady = browser.storage.local.get("harvestState").then((stored) => {
@@ -18,10 +19,28 @@ const stateReady = browser.storage.local.get("harvestState").then((stored) => {
   }
   return undefined;
 });
+const archivalStateReady = browser.storage.local.get("archivalState").then((stored) => {
+  if (stored.archivalState && typeof stored.archivalState === "object") {
+    archivalState = stored.archivalState.state === "running"
+      ? {state: "failed", message: "Previous archival operation was interrupted by extension reload"}
+      : stored.archivalState;
+    return browser.storage.local.set({archivalState});
+  }
+  return undefined;
+});
 
 function setHarvestState(value) {
   harvestState = value;
   return browser.storage.local.set({harvestState: value});
+}
+
+function setArchivalState(value) {
+  archivalState = value;
+  return browser.storage.local.set({archivalState: value});
+}
+
+function anyOperationRunning() {
+  return ["running", "selecting"].includes(harvestState.state) || archivalState.state === "running";
 }
 
 function stopPickerTimeout() {
@@ -94,8 +113,49 @@ async function runMediaHarvest(mediaUrl, pageUrl) {
   }
 }
 
+async function runArchivalOperation(command, payload, runningMessage, completeMessage) {
+  await setArchivalState({state: "running", message: runningMessage});
+  try {
+    const response = await sendNative(command, payload);
+    if (response && response.ok) {
+      await setArchivalState({
+        state: "complete", message: completeMessage, result: response.result
+      });
+    } else {
+      await setArchivalState({
+        state: "failed",
+        message: response && response.error && response.error.message || "Archival operation failed safely"
+      });
+    }
+  } catch (error) {
+    await setArchivalState({state: "failed", message: "Local companion became unavailable"});
+  }
+}
+
+async function runLocalFileHarvest() {
+  await setHarvestState({state: "running", message: "Waiting for local file selection…"});
+  try {
+    const response = await sendNative("harvest_local_file", {});
+    if (response && response.ok && response.result && response.result.state === "cancelled") {
+      await setHarvestState({state: "idle", message: "Local file selection cancelled"});
+    } else if (response && response.ok) {
+      await setHarvestState({
+        state: "complete", message: "Local file harvest complete",
+        output_path: response.result && response.result.output_path
+      });
+    } else {
+      await setHarvestState({
+        state: "failed", message: response && response.error && response.error.message || "Local file failed safely"
+      });
+    }
+  } catch (error) {
+    await setHarvestState({state: "failed", message: "Local companion became unavailable"});
+  }
+}
+
 browser.runtime.onMessage.addListener(async (message, sender) => {
   await stateReady;
+  await archivalStateReady;
   if (!message || typeof message !== "object") return undefined;
   if (message.command === "get_companion_status") {
     return sendNative("get_status", {});
@@ -103,8 +163,32 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   if (message.command === "get_harvest_state") {
     return harvestState;
   }
+  if (message.command === "get_archival_operation") return archivalState;
+  if (message.command === "get_archival_status") return sendNative("get_archival_status", {});
+  if (message.command === "start_saved_scan") {
+    if (anyOperationRunning()) return {accepted: false, state: archivalState};
+    void runArchivalOperation(
+      "scan_saved_posts", {}, "Scanning saved posts… Keep Firefox open.", "Saved-post scan complete"
+    );
+    return {accepted: true};
+  }
+  if (message.command === "start_local_file_harvest") {
+    if (anyOperationRunning()) return {accepted: false, state: harvestState};
+    void runLocalFileHarvest();
+    return {accepted: true};
+  }
+  if (message.command === "start_archival_batch") {
+    if (anyOperationRunning()) return {accepted: false, state: archivalState};
+    void runArchivalOperation(
+      "harvest_archival_batch",
+      {count: message.count, min_delay: message.min_delay, max_delay: message.max_delay},
+      "Harvesting oldest saved batch… Keep Firefox open.",
+      "Archival batch complete"
+    );
+    return {accepted: true};
+  }
   if (message.command === "start_harvest") {
-    if (harvestState.state === "running") {
+    if (anyOperationRunning()) {
       return {accepted: false, state: harvestState};
     }
     if (typeof message.url !== "string") {
@@ -114,7 +198,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     return {accepted: true};
   }
   if (message.command === "start_picker") {
-    if (harvestState.state === "running") {
+    if (anyOperationRunning()) {
       return {accepted: false, state: harvestState};
     }
     if (!Number.isInteger(message.tab_id)) {
@@ -147,7 +231,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     }
   }
   if (message.command === "picker_selection") {
-    if (harvestState.state === "running") return {accepted: false};
+    if (anyOperationRunning() && harvestState.state !== "selecting") return {accepted: false};
     stopPickerTimeout();
     pickerTabId = null;
     if (sender.tab && Number.isInteger(sender.tab.id)) {

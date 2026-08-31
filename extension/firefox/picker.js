@@ -9,31 +9,52 @@
   function clearHighlight() {
     if (!highlighted) return;
     highlighted.badge.remove();
-    highlighted.element.style.outline = highlighted.outline;
-    highlighted.element.style.outlineOffset = highlighted.outlineOffset;
+    highlighted.overlay.remove();
+    highlighted.element.style.setProperty("outline", highlighted.outline, highlighted.outlinePriority);
+    highlighted.element.style.setProperty(
+      "outline-offset", highlighted.outlineOffset, highlighted.outlineOffsetPriority
+    );
+    highlighted.element.style.setProperty("box-shadow", highlighted.boxShadow, highlighted.boxShadowPriority);
     highlighted = null;
   }
 
   function highlight(element) {
-    if (highlighted && highlighted.element === element) return;
+    if (highlighted && highlighted.element === element) {
+      positionControls(element, highlighted.overlay, highlighted.badge);
+      return;
+    }
     clearHighlight();
     highlighted = {
       element,
-      outline: element.style.outline,
-      outlineOffset: element.style.outlineOffset,
+      outline: element.style.getPropertyValue("outline"),
+      outlinePriority: element.style.getPropertyPriority("outline"),
+      outlineOffset: element.style.getPropertyValue("outline-offset"),
+      outlineOffsetPriority: element.style.getPropertyPriority("outline-offset"),
+      boxShadow: element.style.getPropertyValue("box-shadow"),
+      boxShadowPriority: element.style.getPropertyPriority("box-shadow"),
+      overlay: element.ownerDocument.createElement("div"),
       badge: element.ownerDocument.createElement("button")
     };
-    element.style.outline = "3px solid #35c46a";
-    element.style.outlineOffset = "3px";
+    element.style.setProperty("outline", "3px solid #35c46a", "important");
+    element.style.setProperty("outline-offset", "3px", "important");
+    element.style.setProperty("box-shadow", "0 0 0 4px rgba(53, 196, 106, 0.3)", "important");
     const rectangle = element.getBoundingClientRect();
+    const overlay = highlighted.overlay;
+    overlay.setAttribute("aria-hidden", "true");
+    Object.assign(overlay.style, {
+      position: "fixed",
+      zIndex: "2147483646",
+      boxSizing: "border-box",
+      border: "4px solid #35c46a",
+      boxShadow: "inset 0 0 0 2px rgba(255, 255, 255, 0.8)",
+      pointerEvents: "none"
+    });
     const badge = highlighted.badge;
     badge.type = "button";
     badge.textContent = "Harvest media";
     badge.setAttribute("aria-label", "Harvest this media element");
     Object.assign(badge.style, {
       position: "fixed",
-      left: `${Math.max(6, rectangle.left + 8)}px`,
-      top: `${Math.max(6, rectangle.top + 8)}px`,
       zIndex: "2147483647",
       padding: "7px 10px",
       border: "2px solid #ffffff",
@@ -41,28 +62,49 @@
       background: "#17883f",
       color: "#ffffff",
       font: "600 13px system-ui, sans-serif",
-      cursor: "pointer",
       boxShadow: "0 2px 8px rgba(0, 0, 0, 0.35)"
     });
+    badge.style.setProperty("cursor", "pointer", "important");
     badge.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
       select(element);
     }, true);
+    positionControls(element, overlay, badge);
+    element.ownerDocument.body.appendChild(overlay);
     element.ownerDocument.body.appendChild(badge);
+  }
+
+  function positionControls(element, overlay, badge) {
+    const rectangle = element.getBoundingClientRect();
+    Object.assign(overlay.style, {
+      left: `${rectangle.left}px`,
+      top: `${rectangle.top}px`,
+      width: `${rectangle.width}px`,
+      height: `${rectangle.height}px`
+    });
+    Object.assign(badge.style, {
+      left: `${Math.max(6, rectangle.left + 8)}px`,
+      top: `${Math.max(6, rectangle.top + 8)}px`
+    });
   }
 
   function register(targetDocument) {
     if (!targetDocument || registrations.some((entry) => entry.document === targetDocument)) return;
     const root = targetDocument.documentElement;
-    const previousCursor = root.style.cursor;
-    root.style.cursor = "crosshair";
+    const style = targetDocument.createElement("style");
+    style.textContent = [
+      "html.__harvester-picker-active,",
+      "html.__harvester-picker-active body,",
+      "html.__harvester-picker-active body * { cursor: crosshair !important; }"
+    ].join("\n");
+    (targetDocument.head || root).appendChild(style);
+    root.classList.add("__harvester-picker-active");
     targetDocument.addEventListener("pointerdown", choose, true);
     targetDocument.addEventListener("keydown", cancel, true);
     targetDocument.addEventListener("mouseover", enterFrame, true);
-    targetDocument.addEventListener("mouseover", showTarget, true);
-    targetDocument.addEventListener("mouseout", hideTarget, true);
-    registrations.push({document: targetDocument, root, previousCursor});
+    targetDocument.addEventListener("pointermove", showTarget, true);
+    registrations.push({document: targetDocument, root, style});
   }
 
   function cleanup() {
@@ -70,9 +112,9 @@
       entry.document.removeEventListener("pointerdown", choose, true);
       entry.document.removeEventListener("keydown", cancel, true);
       entry.document.removeEventListener("mouseover", enterFrame, true);
-      entry.document.removeEventListener("mouseover", showTarget, true);
-      entry.document.removeEventListener("mouseout", hideTarget, true);
-      entry.root.style.cursor = entry.previousCursor;
+      entry.document.removeEventListener("pointermove", showTarget, true);
+      entry.root.classList.remove("__harvester-picker-active");
+      entry.style.remove();
     }
     clearHighlight();
     registrations.length = 0;
@@ -95,15 +137,9 @@
   }
 
   function showTarget(event) {
-    const element = event.target.closest && event.target.closest("video, audio");
+    const element = mediaTarget(event);
     if (element) highlight(element);
-  }
-
-  function hideTarget(event) {
-    if (!highlighted) return;
-    const next = event.relatedTarget;
-    if (next && (highlighted.element.contains(next) || highlighted.badge.contains(next))) return;
-    clearHighlight();
+    else if (!highlighted || event.target !== highlighted.badge) clearHighlight();
   }
 
   function ordinarySources(element) {
@@ -118,7 +154,17 @@
     const direct = event.target.closest && event.target.closest("video, audio");
     if (direct) return direct;
     const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-    return path.find((element) => element && ["VIDEO", "AUDIO"].includes(element.tagName)) || null;
+    const composed = path.find((element) => element && ["VIDEO", "AUDIO"].includes(element.tagName));
+    if (composed) return composed;
+    const documentAtPointer = event.target && event.target.ownerDocument;
+    if (!documentAtPointer || typeof documentAtPointer.elementsFromPoint !== "function") return null;
+    const stack = documentAtPointer.elementsFromPoint(event.clientX, event.clientY);
+    for (const element of stack) {
+      if (["VIDEO", "AUDIO"].includes(element.tagName)) return element;
+      const nested = element.closest && element.closest("video, audio");
+      if (nested) return nested;
+    }
+    return null;
   }
 
   function select(element) {

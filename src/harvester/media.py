@@ -22,14 +22,5 @@ def has_audio(probe_result: dict[str, Any]) -> bool:
 
 def extract_wav(source: Path, destination: Path) -> None:
     """Create the V0 DAW contract: stereo 48 kHz, signed 24-bit PCM WAV."""
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        [
-            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-            "-i", str(source), "-vn", "-ar", "48000", "-ac", "2",
-            "-c:a", "pcm_s24le", str(destination),
-        ],
-        check=True,
-    )
-
+    from .audio import extract_audio
+    extract_audio(source, destination)

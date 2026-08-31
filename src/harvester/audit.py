@@ -78,15 +78,28 @@ def audit_archive(root: Path) -> dict[str, Any]:
             except Exception as error:
                 _issue(issues, "error", bundle, "unreadable_media", f"{relative}: {type(error).__name__}")
                 continue
-            if record.get("role") == "audio" and path.suffix.lower() == ".wav":
+            if record.get("role") == "audio":
                 streams = [stream for stream in facts.get("streams", []) if stream.get("codec_type") == "audio"]
                 if not streams:
-                    _issue(issues, "error", bundle, "wav_missing_audio", relative)
+                    _issue(issues, "error", bundle, "audio_missing_stream", relative)
                 else:
                     stream = streams[0]
+                    encoding = record.get("encoding")
+                    preset = encoding.get("preset") if isinstance(encoding, dict) else None
+                    expected = {
+                        "wav_48k_24": ("pcm_s24le", "48000", 2),
+                        "wav_44k_16": ("pcm_s16le", "44100", 2),
+                        "flac_48k_24": ("flac", "48000", 2),
+                        "mp3_320": ("mp3", "48000", 2),
+                        "mp3_192": ("mp3", "48000", 2),
+                    }
+                    if preset is None and path.suffix.lower() == ".wav":
+                        preset = "wav_48k_24"
                     actual = (stream.get("codec_name"), stream.get("sample_rate"), stream.get("channels"))
-                    if actual != ("pcm_s24le", "48000", 2):
-                        _issue(issues, "error", bundle, "wav_contract", f"{relative}: {actual}")
+                    if preset not in expected:
+                        _issue(issues, "error", bundle, "audio_preset", f"{relative}: missing or unknown preset")
+                    elif actual != expected[preset]:
+                        _issue(issues, "error", bundle, "audio_contract", f"{relative}: {actual}")
         if original_count == 0:
             _issue(issues, "error", bundle, "missing_original", "no original file record")
 

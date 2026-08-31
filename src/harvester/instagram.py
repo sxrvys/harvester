@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from .archive import Archive
-from .media import extract_wav, has_audio, probe
+from .audio import DEFAULT_AUDIO_PRESET, extract_audio, get_audio_preset
+from .media import has_audio, probe
 from .model import HarvestItem
 from .naming import propose_name
 
@@ -31,6 +32,7 @@ def harvest_instagram_url(
     browser_profile: Path,
     archive_root: Path,
     platform_audio: dict[str, Any] | None = None,
+    audio_preset: str = DEFAULT_AUDIO_PRESET,
 ) -> Path:
     """Acquire exactly one supplied Instagram URL through one explicit Firefox profile."""
 
@@ -95,7 +97,7 @@ def harvest_instagram_url(
                 "audio": _preferred_audio_metadata(platform_audio, info),
             },
         )
-        return _build_bundle(item, media_files, archive_root)
+        return _build_bundle(item, media_files, archive_root, audio_preset)
 
 
 def _read_info(paths: list[Path]) -> dict[str, Any]:
@@ -143,7 +145,13 @@ def _media_files(staging: Path) -> list[Path]:
 
 
 
-def _build_bundle(item: HarvestItem, media_files: list[Path], archive_root: Path) -> Path:
+def _build_bundle(
+    item: HarvestItem,
+    media_files: list[Path],
+    archive_root: Path,
+    audio_preset: str = DEFAULT_AUDIO_PRESET,
+) -> Path:
+    preset = get_audio_preset(audio_preset)
     archive = Archive(archive_root)
     records: list[dict[str, Any]] = []
     inspected: list[tuple[Path, dict[str, Any], str]] = []
@@ -152,7 +160,7 @@ def _build_bundle(item: HarvestItem, media_files: list[Path], archive_root: Path
         facts = probe(source)
         kind = _media_kind(facts)
         original["media_kind"] = kind
-        original["probe"] = facts
+        original["probe"] = _metadata_probe(facts)
         records.append(original)
         inspected.append((source, facts, kind))
 
@@ -172,13 +180,16 @@ def _build_bundle(item: HarvestItem, media_files: list[Path], archive_root: Path
 
         if kind in {"video", "audio"} and has_audio(facts):
             audio_index += 1
-            name = archive.asset_relative_path(item, "audio", ".wav", audio_index, audible_count).as_posix()
+            name = archive.asset_relative_path(
+                item, "audio", preset.extension, audio_index, audible_count
+            ).as_posix()
             destination = archive.item_directory(item) / name
             if not destination.exists():
-                extract_wav(source, destination)
+                extract_audio(source, destination, preset.key)
             wav_facts = probe(destination)
             record = archive.copy_derivative(item, destination, name, "audio")
-            record["probe"] = wav_facts
+            record["probe"] = _metadata_probe(wav_facts)
+            record["encoding"] = dict(preset.metadata)
             records.append(record)
 
     tools = {
@@ -187,6 +198,17 @@ def _build_bundle(item: HarvestItem, media_files: list[Path], archive_root: Path
     }
     archive.write_metadata(item, records, tools)
     return archive.item_directory(item)
+
+
+def _metadata_probe(facts: dict[str, Any]) -> dict[str, Any]:
+    """Keep useful media facts without persisting a local filesystem path."""
+    sanitized = {
+        **facts,
+        "format": dict(facts.get("format", {})),
+        "streams": [dict(stream) for stream in facts.get("streams", [])],
+    }
+    sanitized["format"].pop("filename", None)
+    return sanitized
 
 
 def _media_kind(facts: dict[str, Any]) -> str:

@@ -1,0 +1,21 @@
+:root { color-scheme: light dark; font: message-box; background: Canvas; color: CanvasText; }
+body { margin: 0; }
+main { margin: 40px auto; max-width: 760px; padding: 0 24px 48px; }
+header { align-items: center; display: flex; gap: 14px; }
+header img { height: 38px; width: 38px; }
+h1 { font-size: 26px; margin: 0; }
+header p { color: GrayText; margin: 4px 0 0; }
+section { border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent); margin-top: 28px; padding-top: 22px; }
+.counts { border: 0; display: grid; gap: 12px; grid-template-columns: repeat(5, 1fr); }
+.counts div { background: color-mix(in srgb, CanvasText 7%, Canvas); border-radius: 8px; padding: 14px; }
+.counts strong, .counts span { display: block; }
+.counts strong { font-size: 24px; }
+.counts span, .muted { color: GrayText; }
+.controls { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
+label { font-weight: 650; }
+input { box-sizing: border-box; display: block; font: inherit; margin-top: 7px; padding: 8px; width: 100%; }
+button { font: inherit; margin-top: 10px; padding: 9px 14px; }
+.warning { border-left: 4px solid #c77d00; margin: 22px 0 10px; padding: 4px 12px; }
+#status { margin-top: 24px; }
+@media (max-width: 620px) { .counts, .controls { grid-template-columns: 1fr 1fr; } }
+@media (prefers-color-scheme: dark) { header img { content: url("icons/glyph-light.svg"); } }

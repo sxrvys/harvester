@@ -5,6 +5,8 @@ const status = document.querySelector("#status");
 const harvest = document.querySelector("#harvest");
 const settings = document.querySelector("#settings");
 const openOutput = document.querySelector("#open-output");
+const archival = document.querySelector("#archival");
+const localFile = document.querySelector("#local-file");
 const selectMedia = document.querySelector("#select-media");
 let currentUrl = null;
 let currentTabId = null;
@@ -17,6 +19,8 @@ function isSupportedUrl(url) {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
     if ((parsed.hostname === "instagram.com" || parsed.hostname === "www.instagram.com")
         && /^\/(p|reel|reels)\/[A-Za-z0-9_-]+\/?$/.test(parsed.pathname)) return true;
+    if (parsed.hostname === "www.reddit.com"
+        && /^\/r\/[^/?#]+\/comments\/[A-Za-z0-9]+\/[^/?#]+\/?$/.test(parsed.pathname)) return true;
     return (parsed.hostname === "youtube.com" || parsed.hostname === "www.youtube.com")
       && parsed.pathname === "/watch"
       && /^[A-Za-z0-9_-]{11}$/.test(parsed.searchParams.get("v") || "");
@@ -103,6 +107,12 @@ harvest.addEventListener("click", async () => {
 });
 
 settings.addEventListener("click", () => browser.runtime.openOptionsPage());
+archival.addEventListener("click", () => browser.tabs.create({url: browser.runtime.getURL("archive.html")}));
+localFile.addEventListener("click", async () => {
+  const response = await browser.runtime.sendMessage({command: "start_local_file_harvest"});
+  if (response && response.accepted) window.close();
+  else status.textContent = response && response.state && response.state.message || "Another operation is running";
+});
 selectMedia.addEventListener("click", async () => {
   if (!currentTabId || selectMedia.disabled) return;
   const response = await browser.runtime.sendMessage({command: "start_picker", tab_id: currentTabId});

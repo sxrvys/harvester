@@ -1,6 +1,6 @@
 # harvester project handoff
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 Read this document before changing the project. It records decisions and
 acceptance results established with the project owner.
@@ -194,6 +194,10 @@ demo:
 - Closing the popup does not interrupt work. Picker state cancels on timeout, Escape,
   tab navigation/closure, or extension reload and cannot remain falsely ready.
 - Permissions remain only `activeTab`, `nativeMessaging`, and local `storage`.
+- Archive.org exposed a player overlay/clipping edge case: cursor-local
+  `elementsFromPoint` selection now finds only media under the user's pointer,
+  and a pointer-transparent fixed border renders inside the media rectangle.
+  The owner manually confirmed the button, border, and Escape cleanup work.
 
 The current Saved index and ledger contain 454 items. Three oldest-first batches
 of ten have completed; the third completed 10/10 on 2026-08-30. The ledger then
@@ -215,8 +219,43 @@ canonical `/watch?v=` URLs and structurally rejects playlists, channels, searche
 and bulk enumeration. Current YouTube extraction requires the Homebrew yt-dlp/Deno
 stack, and both whole-request and fragment retries are disabled.
 
-Next, implement a bounded single-post Reddit adapter. Packaging, signing, and distribution remain paused until
-the project owner explicitly resumes them.
+The bounded single-post Reddit adapter was manually accepted in Firefox against
+post `1uh1oty`. It produced a preserved 24,604,629-byte MP4, an identical playable
+MP4 derivative, and a 48 kHz/24-bit stereo WAV with matching recorded sizes and
+hashes and no ledger entry.
+
+Audio output is now governed by one global Settings preset for future bundles:
+48 kHz/24-bit WAV (default), 44.1 kHz/16-bit WAV, 48 kHz/24-bit FLAC, 320 kbps
+MP3, or 192 kbps MP3. There is deliberately no per-harvest choice, video
+transcoding, or retroactive batch conversion. Originals remain byte-preserved,
+and derivative metadata records the preset.
+The Settings page uses a native macOS folder picker for output selection and
+auto-detects Firefox's declared default profile; manual profile editing remains
+available under an Advanced disclosure. The owner manually accepted the complete
+Settings workflow in Firefox. Packaging, signing, and distribution
+remain paused until the project owner explicitly resumes them.
+
+The separate Instagram **Archival Harvest** screen was manually accepted in
+Firefox. Its first UI scan found two new saves after scanning seven posts and
+stopped at the five-known boundary, bringing the index and ledger to 456. Its
+first UI-driven oldest-first batch completed post `DbL0aWgIApV`, bringing the
+ledger to 423 waiting, 26 complete, one deferred, and six retired. The new bundle
+passed source identity, hash, media, and configured `wav_48k_24` derivative checks. It
+offers an explicit five-known-boundary scan and oldest-first batches with size
+1–25, randomized 10–300 second delay bounds, sequential downloads, no retries,
+authentication/rate-limit stops, live batch progress, and the approved account-risk
+warning. One-time scheduling remains deferred until this manual workflow is proven.
+The full automated suite currently passes 86 tests.
+
+The single-file **Harvest local file** workflow was manually accepted in Firefox
+using the Archive.org download of *Duck and Cover*. The Finder-selected source,
+preserved original, and playable MP4 derivative have the same SHA-256 digest. Its
+configured audio derivative is 48 kHz/24-bit stereo WAV, and no lifecycle-ledger
+entry was created. A verification pass caught and fixed ffprobe's absolute
+`filename` field before acceptance; probe metadata now strips filesystem paths,
+and the accepted bundle was sanitized. Local harvesting remains deliberately
+one-file-at-a-time with no folders, watchers, batch conversion, or retained source
+directory.
 
 ## Working preferences
 

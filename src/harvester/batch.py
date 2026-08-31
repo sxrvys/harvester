@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .instagram import AcquisitionError, harvest_instagram_url
+from .audio import DEFAULT_AUDIO_PRESET
 from .ledger import TERMINAL_STATUSES, identity_key
 
 
@@ -27,6 +28,7 @@ def harvest_oldest(
     max_delay: float = 15.0,
     item_ledger_path: Path | None = None,
     manual_review_path: Path | None = None,
+    audio_preset: str = DEFAULT_AUDIO_PRESET,
 ) -> dict[str, Any]:
     if count < 1:
         raise ValueError("count must be positive")
@@ -71,7 +73,7 @@ def harvest_oldest(
         _atomic_write(batch_path, batch)
         try:
             destination = harvest_instagram_url(
-                record["source_url"], firefox_profile, archive_root, record.get("audio")
+                record["source_url"], firefox_profile, archive_root, record.get("audio"), audio_preset
             )
         except AcquisitionError as error:
             record["status"] = "failed"
