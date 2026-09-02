@@ -22,10 +22,21 @@ function renderStatus(result) {
   fields.retired.textContent = (summary["retired-used"] || 0) + (summary["retired-deleted"] || 0);
   if (result.last_scan_at) {
     const detail = result.last_scan || {};
-    const added = Number.isInteger(detail.new_count) ? ` — ${detail.new_count} new` : "";
+    const added = Number.isInteger(detail.new_count) ? ` — ${detail.new_count} newly indexed` : "";
     lastScan.textContent = `Last scan: ${new Date(result.last_scan_at).toLocaleString()}${added}`;
   }
   return result.latest_batch || null;
+}
+
+function operationMessage(operation) {
+  const result = operation && operation.result;
+  if (operation && operation.state === "complete" && result
+      && Number.isInteger(result.complete) && Number.isInteger(result.failed)) {
+    const downloadedLabel = result.complete === 1 ? "post" : "posts";
+    const skippedLabel = result.failed === 1 ? "post" : "posts";
+    return `Archival batch complete — ${result.complete} ${downloadedLabel} downloaded, ${result.failed} ${skippedLabel} skipped`;
+  }
+  return operation.message;
 }
 
 async function refresh() {
@@ -37,7 +48,7 @@ async function refresh() {
     const progress = response && response.ok ? renderStatus(response.result) : null;
     status.textContent = operation.state === "running" && progress
       ? `${operation.message} ${progress.complete + progress.failed}/${progress.count} finished.`
-      : operation.message;
+      : operationMessage(operation);
     const running = operation.state === "running";
     scan.disabled = running;
     batch.disabled = running;

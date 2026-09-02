@@ -118,8 +118,12 @@ async function runArchivalOperation(command, payload, runningMessage, completeMe
   try {
     const response = await sendNative(command, payload);
     if (response && response.ok) {
+      const result = response.result || {};
+      const message = command === "harvest_archival_batch"
+        ? archivalBatchCompleteMessage(result)
+        : completeMessage;
       await setArchivalState({
-        state: "complete", message: completeMessage, result: response.result
+        state: "complete", message, result
       });
     } else {
       await setArchivalState({
@@ -130,6 +134,14 @@ async function runArchivalOperation(command, payload, runningMessage, completeMe
   } catch (error) {
     await setArchivalState({state: "failed", message: "Local companion became unavailable"});
   }
+}
+
+function archivalBatchCompleteMessage(result) {
+  const downloaded = Number.isInteger(result.complete) ? result.complete : 0;
+  const skipped = Number.isInteger(result.failed) ? result.failed : 0;
+  const downloadLabel = downloaded === 1 ? "post" : "posts";
+  const skipLabel = skipped === 1 ? "post" : "posts";
+  return `Archival batch complete — ${downloaded} ${downloadLabel} downloaded, ${skipped} ${skipLabel} skipped`;
 }
 
 async function runLocalFileHarvest() {

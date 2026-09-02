@@ -28,6 +28,9 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
 - It scans Saved newest-first and stops after five consecutive ledgered post IDs.
 - Newly discovered posts are appended to the canonical oldest-first index and
   synchronized into the ledger as `discovered`.
+- The last-scan counter is per-scan, not cumulative, and is labeled **newly
+  indexed** because Instagram may resurface an older Saved ID that was absent
+  from the current index.
 - Authentication, challenge, and rate-limit signals stop the scan safely.
 - A failed scan does not replace the last complete canonical index.
 
@@ -42,6 +45,8 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
   challenge, or rate-limit signals stop the batch.
 - The active global audio preset applies to newly created bundles.
 - Results synchronize into the lifecycle ledger and remain inspectable locally.
+- Completion reports separate downloaded and skipped counts rather than implying
+  that every requested post produced media.
 
 The screen displays:
 
@@ -73,3 +78,6 @@ Accepted in Firefox on 2026-08-30:
 - The bundle contains a byte-preserved 4,177,072-byte MP4, identical playable
   MP4 derivative, and configured 48 kHz/24-bit stereo WAV with matching recorded
   sizes and hashes and explicit `wav_48k_24` encoding metadata.
+- A later ten-item batch completed its full bounded run: six media posts were
+  downloaded and four posts with no video formats were skipped into manual review.
+  The six new bundles passed the archive audit; no automatic retries occurred.
