@@ -1,9 +1,7 @@
 # Harvester
 
-See something strange, beautiful, useful, or inspiring online? Harvest it.
-
 Harvester is a local-first Firefox extension for artists, musicians, editors,
-researchers, and curious people who collect source material for later. It saves the
+researchers, and people who collect source material online for later. It saves the
 original media, makes a practical audio derivative, and records enough provenance
 to remember where it came from—all in ordinary files on your Mac.
 
@@ -13,7 +11,7 @@ Instagram Saved collection in small, deliberately paced batches, starting with t
 oldest things you saved.
 
 Harvester is intentionally focused. It is not a general scraper, feed crawler,
-playlist downloader, surveillance tool, media library, or batch converter. It
+playlist downloader, media library, or batch converter. It
 only acts when you ask it to harvest something.
 
 ## What it can do
@@ -37,16 +35,7 @@ only acts when you ask it to harvest something.
 - Prepare a readable, privacy-conscious bug report when something fails—without
   silently sending anything anywhere.
 
-## Why artists might care
-
-Sample- and collage-based work often begins with a fragment: an unusual voice, a
-few seconds of motion, a degraded public film, an accidental rhythm, or a visual
-texture you cannot stop thinking about. Finding the fragment is the fun part.
-Remembering where it came from, extracting usable audio, and finding it again six
-months later usually is not.
-
-Harvester does that clerical work while the discovery is still fresh. It preserves
-the source, makes an immediately useful audio file, and keeps provenance beside the
+Harvester does the clerical work of helping you archive a sound or video while the discovery is still fresh. It preserves the source, makes an immediately useful audio file, and keeps provenance beside the
 media. Carousels stay together as one post; long-lived Saved collections can be
 worked through gradually; and everything lands in normal files that can go straight
 into a sampler, DAW, NLE, VJ setup, collage folder, or research notebook. Harvester
@@ -127,7 +116,7 @@ Each harvest becomes a self-contained folder with:
 - `metadata.json`, containing provenance and useful media facts.
 
 Instagram archival folders have compact, naturally sorted names such as
-`0044__palestinians-displaced-1967`. The Instagram identifier still lives in the
+`0044__people-dancing`. The Instagram identifier still lives in the
 metadata and private ledger, where it is useful, instead of cluttering Finder.
 
 ## Privacy
@@ -141,9 +130,6 @@ would be shared. Page addresses are excluded unless you explicitly add a sanitiz
 version. Reports never include cookies, credentials, query parameters, media URLs,
 headers, filesystem paths, or raw downloader output. You decide whether to copy the
 report or open a GitHub issue, and nothing is submitted for you.
-
-The fuller promises live in [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md).
-The project's current licensing position is in [`LICENSING.md`](LICENSING.md).
 
 ## A note about Archival Harvest
 
