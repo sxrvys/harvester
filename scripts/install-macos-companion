@@ -32,12 +32,6 @@ MANIFEST="$MANIFEST_ROOT/com.harvester.native.json"
 
 mkdir -p "$APPLICATION_ROOT" "$STATE_ROOT" "$MANIFEST_ROOT"
 
-# Import an existing development archive queue only on first installation.
-# Installed state is authoritative afterward and is never overwritten here.
-if [ ! -e "$STATE_ROOT/item-ledger.json" ] && [ -f "$PROJECT_ROOT/state/item-ledger.json" ]; then
-  cp -R "$PROJECT_ROOT/state/." "$STATE_ROOT/"
-fi
-
 "$PYTHON_BIN" -m venv "$VENV_ROOT"
 "$VENV_ROOT/bin/python" -m pip install --disable-pip-version-check "$PROJECT_ROOT"
 

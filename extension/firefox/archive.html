@@ -9,6 +9,18 @@
   <body>
     <main>
       <header><img src="icons/glyph-dark.svg" alt=""><div><h1>Archival Harvest</h1><p>Instagram Saved, oldest first</p></div></header>
+      <section class="archive-sources">
+        <div class="section-heading"><div><h2>Your archives</h2><p>Add an Instagram Saved page or collection.</p></div><button id="add-archive" type="button" aria-label="Add archive">+</button></div>
+        <div id="archive-list" class="archive-list"><p class="muted">Loading archives…</p></div>
+        <form id="archive-form" class="archive-form" hidden>
+          <label>Instagram Saved-page URL <input id="archive-url" type="url" required placeholder="https://www.instagram.com/…/saved/…/"></label>
+          <label>Archive name <span class="muted">(optional)</span> <input id="archive-name" type="text" maxlength="80" placeholder="Visual references"></label>
+          <div class="form-actions"><button id="use-current-page" class="secondary" type="button">Use current Instagram page</button><button type="submit">Add archive</button><button id="cancel-archive" class="secondary" type="button">Cancel</button></div>
+          <p id="archive-form-status" role="status"></p>
+        </form>
+      </section>
+      <div id="archive-workspace" hidden>
+      <section class="selected-archive"><div><h2 id="selected-name">Archive</h2><p id="selected-url" class="muted"></p></div><button id="open-instagram" class="secondary" type="button">Open in Instagram</button><button id="edit-archive" class="secondary" type="button">Edit</button><button id="rename-archive" class="secondary" type="button">Rename</button><button id="remove-archive" class="secondary" type="button">Remove</button></section>
       <section class="counts" aria-label="Archive status">
         <div><strong id="indexed">—</strong><span>Indexed</span></div>
         <div><strong id="waiting">—</strong><span>Waiting</span></div>
@@ -39,6 +51,7 @@
         <p>Review only the latest batch. Deleting moves one verified harvest to Trash and retires it from the queue.</p>
         <div id="recent-batch" class="recent-batch"><p class="muted">Loading recent batch…</p></div>
       </section>
+      </div>
     </main>
     <script src="archive.js"></script>
   </body>

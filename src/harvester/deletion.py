@@ -23,6 +23,7 @@ def rename_archive_item(
     source_id: str,
     requested_title: str,
     source: str = "instagram",
+    related_state_roots: list[Path] | None = None,
 ) -> dict[str, Any]:
     """Rename one verified archival bundle and every local state reference atomically."""
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
@@ -46,7 +47,9 @@ def rename_archive_item(
     if len(title) > 44:
         shortened = title[:44].rstrip("-")
         title = shortened.rsplit("-", 1)[0] if "-" in shortened else shortened
-    new = root / f"{record['saved_order_oldest_first']:04d}__{title}"
+    existing_order = re.match(r"^(\d+)__", old.name)
+    order = existing_order.group(1) if existing_order else f"{record['saved_order_oldest_first']:04d}"
+    new = root / f"{order}__{title}"
     if new != old and new.exists():
         raise ArchiveDeletionError("another archival bundle already uses that name")
 
@@ -54,6 +57,11 @@ def rename_archive_item(
     if index_path.is_file():
         paths.append(index_path)
     paths.extend(sorted(batches_root.glob("*.json")) if batches_root.is_dir() else [])
+    for state_root in related_state_roots or []:
+        paths.append(state_root / "item-ledger.json")
+        paths.append(state_root / "saved-index.json")
+        paths.extend(sorted((state_root / "batches").glob("*.json")) if (state_root / "batches").is_dir() else [])
+    paths = list(dict.fromkeys(path for path in paths if path.is_file()))
     originals: dict[Path, dict[str, Any]] = {}
     changed: dict[Path, dict[str, Any]] = {}
     for path in paths:
@@ -62,8 +70,9 @@ def rename_archive_item(
         except (OSError, json.JSONDecodeError):
             continue
         originals[path] = payload
-        if path == ledger_path:
-            payload["items"][key]["archive_directory"] = str(new)
+        mapped_items = payload.get("items")
+        if isinstance(mapped_items, dict) and isinstance(mapped_items.get(key), dict) and mapped_items[key].get("archive_directory"):
+            mapped_items[key]["archive_directory"] = str(new)
         for item in payload.get("items", []) if isinstance(payload.get("items"), list) else []:
             if isinstance(item, dict) and item.get("source") == source and item.get("source_id") == source_id and item.get("archive_directory"):
                 current = Path(str(item["archive_directory"]))

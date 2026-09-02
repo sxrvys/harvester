@@ -176,6 +176,58 @@ async function runArchivalOperation(command, payload, runningMessage, completeMe
   }
 }
 
+function waitForTabComplete(tabId) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      browser.tabs.onUpdated.removeListener(updated);
+      reject(new Error("Instagram page took too long to load"));
+    }, 30000);
+    function updated(updatedId, changeInfo) {
+      if (updatedId !== tabId || changeInfo.status !== "complete") return;
+      clearTimeout(timeout);
+      browser.tabs.onUpdated.removeListener(updated);
+      resolve();
+    }
+    browser.tabs.onUpdated.addListener(updated);
+    browser.tabs.get(tabId).then((tab) => {
+      if (tab.status === "complete") {
+        clearTimeout(timeout);
+        browser.tabs.onUpdated.removeListener(updated);
+        resolve();
+      }
+    }).catch(reject);
+  });
+}
+
+async function runConfiguredArchiveScan(archiveId) {
+  await setArchivalState({state: "running", message: "Opening the configured Instagram archive…"});
+  let scanTabId = null;
+  try {
+    const contextResponse = await sendNative("get_archive_scan_context", {archive_id: archiveId});
+    if (!contextResponse || !contextResponse.ok) throw new Error(contextResponse && contextResponse.error && contextResponse.error.message || "Archive unavailable");
+    const context = contextResponse.result;
+    const tab = await browser.tabs.create({url: context.archive.source_url, active: true});
+    scanTabId = tab.id;
+    await waitForTabComplete(tab.id);
+    await browser.tabs.executeScript(tab.id, {file: "archive-scanner.js", allFrames: false});
+    const scanResult = await browser.tabs.sendMessage(tab.id, {
+      command: "scan_instagram_archive_page",
+      known_source_ids: context.known_source_ids
+    });
+    if (!scanResult || !Array.isArray(scanResult.items)) throw new Error("Instagram archive could not be read");
+    if (!scanResult.items.length) {
+      throw new Error(`No post links found after examining ${scanResult.examined_links || 0} page links and ${scanResult.examined_tiles || 0} visible tiles`);
+    }
+    const response = await sendNative("sync_archive_items", {archive_id: archiveId, items: scanResult.items});
+    if (!response || !response.ok) throw new Error(response && response.error && response.error.message || "Saved-page scan failed safely");
+    await setArchivalState({state: "complete", message: "Saved-post scan complete", result: response.result});
+    await browser.tabs.remove(scanTabId).catch(() => undefined);
+  } catch (error) {
+    await recordFirefoxFailure("scan_saved_posts", "scan_failed", error && error.message || "Saved-page scan failed safely");
+    await setArchivalState({state: "failed", message: error && error.message || "Saved-page scan failed safely"});
+  }
+}
+
 function archivalBatchCompleteMessage(result) {
   const downloaded = Number.isInteger(result.complete) ? result.complete : 0;
   const skipped = Number.isInteger(result.failed) ? result.failed : 0;
@@ -239,12 +291,19 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
       sanitized_page_url: pageUrl
     };
   }
-  if (message.command === "get_archival_status") return sendNative("get_archival_status", {});
+  if (message.command === "list_archives") return sendNative("list_archives", {});
+  if (message.command === "save_archive_source") return sendNative("save_archive_source", {
+    ...(message.archive_id ? {archive_id: message.archive_id} : {}),
+    name: message.name || "", source_url: message.source_url
+  });
+  if (message.command === "rename_archive_source") return sendNative("rename_archive_source", {
+    archive_id: message.archive_id, name: message.name
+  });
+  if (message.command === "remove_archive_source") return sendNative("remove_archive_source", {archive_id: message.archive_id});
+  if (message.command === "get_archival_status") return sendNative("get_archival_status", {archive_id: message.archive_id});
   if (message.command === "start_saved_scan") {
     if (anyOperationRunning()) return {accepted: false, state: archivalState};
-    void runArchivalOperation(
-      "scan_saved_posts", {}, "Scanning saved posts… Keep Firefox open.", "Saved-post scan complete"
-    );
+    void runConfiguredArchiveScan(message.archive_id);
     return {accepted: true};
   }
   if (message.command === "start_local_file_harvest") {
@@ -256,10 +315,28 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     if (anyOperationRunning()) return {accepted: false, state: archivalState};
     void runArchivalOperation(
       "harvest_archival_batch",
-      {count: message.count, min_delay: message.min_delay, max_delay: message.max_delay},
+      {archive_id: message.archive_id, count: message.count, min_delay: message.min_delay, max_delay: message.max_delay},
       "Harvesting oldest saved batch… Keep Firefox open.",
       "Archival batch complete"
     );
+    return {accepted: true};
+  }
+  if (message.command === "archive_scan_progress") {
+    if (archivalState.state === "running" && Number.isInteger(message.count)) {
+      await setArchivalState({
+        state: "running",
+        message: "Scanning archive… Keep Firefox open."
+      });
+    }
+    return {accepted: true};
+  }
+  if (message.command === "archive_tile_progress") {
+    if (archivalState.state === "running") {
+      await setArchivalState({
+        state: "running",
+        message: `Resolving visible collection tiles… ${Number.isInteger(message.found) ? message.found : 0} of ${Number.isInteger(message.candidates) ? message.candidates : 0} identified.`
+      });
+    }
     return {accepted: true};
   }
   if (message.command === "start_harvest") {

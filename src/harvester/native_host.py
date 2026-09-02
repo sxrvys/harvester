@@ -191,9 +191,16 @@ def _audio_preset(settings: dict[str, object]) -> str:
     return value if isinstance(value, str) and value in AUDIO_PRESETS else DEFAULT_AUDIO_PRESET
 
 
-def _archival_paths() -> dict[str, Path]:
+def _archival_root() -> Path:
     override = os.environ.get("HARVESTER_STATE_ROOT")
-    root = Path(override).expanduser() if override else Path(__file__).resolve().parents[2] / "state"
+    return Path(override).expanduser() if override else Path(__file__).resolve().parents[2] / "state"
+
+
+def _archival_paths(archive_id: str | None = None) -> dict[str, Path]:
+    root = _archival_root()
+    if archive_id is not None:
+        from .archive_sources import state_directory
+        root = state_directory(root, archive_id)
     return {
         "root": root,
         "index": root / "saved-index.json",
@@ -204,8 +211,108 @@ def _archival_paths() -> dict[str, Path]:
     }
 
 
-def _archival_status(settings_path: Path) -> dict[str, object]:
-    paths = _archival_paths()
+def _archive_list() -> dict[str, object]:
+    from .archive_sources import public_archives
+    return {"archives": public_archives(_archival_root())}
+
+
+def _single_archive_id(request_id: str) -> str:
+    from .archive_sources import public_archives
+    archives = public_archives(_archival_root())
+    if len(archives) != 1:
+        raise ProtocolError("invalid_request", "Choose an archive in Harvester 1.0.2", request_id)
+    return archives[0]["id"]
+
+
+def _save_archive_source(payload: dict[str, object], request_id: str) -> dict[str, object]:
+    if set(payload) not in ({"name", "source_url"}, {"archive_id", "name", "source_url"}):
+        raise ProtocolError("invalid_request", "Archive name and Instagram URL are required", request_id)
+    if not isinstance(payload.get("name"), str) or not isinstance(payload.get("source_url"), str):
+        raise ProtocolError("invalid_request", "Archive name and Instagram URL must be text", request_id)
+    archive_id = payload.get("archive_id")
+    if archive_id is not None and not isinstance(archive_id, str):
+        raise ProtocolError("invalid_request", "Archive ID is invalid", request_id)
+    from .archive_sources import ArchiveSourceError, save_archive
+    try:
+        return save_archive(_archival_root(), payload["name"], payload["source_url"], archive_id)
+    except ArchiveSourceError as error:
+        raise ProtocolError("invalid_archive_source", str(error), request_id) from None
+
+
+def _rename_archive_source(payload: dict[str, object], request_id: str) -> dict[str, object]:
+    if set(payload) != {"archive_id", "name"} or not all(isinstance(payload.get(key), str) for key in payload):
+        raise ProtocolError("invalid_request", "Archive ID and name are required", request_id)
+    from .archive_sources import ArchiveSourceError, rename_archive
+    try:
+        return rename_archive(_archival_root(), payload["archive_id"], payload["name"])
+    except ArchiveSourceError as error:
+        raise ProtocolError("invalid_archive_source", str(error), request_id) from None
+
+
+def _remove_archive_source(payload: dict[str, object], request_id: str) -> dict[str, object]:
+    if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+        raise ProtocolError("invalid_request", "Archive ID is required", request_id)
+    from .archive_sources import ArchiveSourceError, remove_archive
+    try:
+        return remove_archive(_archival_root(), payload["archive_id"])
+    except ArchiveSourceError as error:
+        raise ProtocolError("invalid_archive_source", str(error), request_id) from None
+
+
+def _archive_scan_context(archive_id: str, request_id: str) -> dict[str, object]:
+    from .archive_sources import ArchiveSourceError, get_archive
+    try:
+        archive = get_archive(_archival_root(), archive_id)
+    except ArchiveSourceError as error:
+        raise ProtocolError("invalid_archive_source", str(error), request_id) from None
+    if not archive.get("source_url"):
+        raise ProtocolError("invalid_archive_source", "Add this archive's Instagram URL before scanning", request_id)
+    paths = _archival_paths(archive_id)
+    known: list[str] = []
+    if paths["index"].is_file():
+        try:
+            value = json.loads(paths["index"].read_text(encoding="utf-8"))
+            known = [item["source_id"] for item in value.get("items", []) if isinstance(item, dict) and isinstance(item.get("source_id"), str)]
+        except (OSError, json.JSONDecodeError, TypeError):
+            raise ProtocolError("archival_state_unavailable", "Archive queue could not be read", request_id) from None
+    return {"archive": dict(archive), "known_source_ids": known[-5000:]}
+
+
+def _sync_archive_items(payload: dict[str, object], request_id: str, settings_path: Path) -> dict[str, object]:
+    if set(payload) != {"archive_id", "items"} or not isinstance(payload.get("archive_id"), str) or not isinstance(payload.get("items"), list):
+        raise ProtocolError("invalid_request", "Archive ID and scanned posts are required", request_id)
+    if len(payload["items"]) > 5000:
+        raise ProtocolError("invalid_request", "Saved-page scan exceeds the supported limit", request_id)
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id)
+    paths = _archival_paths(payload["archive_id"])
+    from .saved import SavedEnumerationError, sync_supplied_saved_items
+    from .ledger import sync_item_ledger
+    try:
+        result = sync_supplied_saved_items(payload["items"], paths["index"], 5)
+        ledger = sync_item_ledger(paths["index"], paths["ledger"], archive_root, paths["manual_review"])
+    except SavedEnumerationError as error:
+        raise ProtocolError("scan_failed", str(error), request_id) from None
+    except ValueError:
+        raise ProtocolError("scan_failed", "Saved-page scan returned invalid state", request_id) from None
+    return {"state": "complete", "scan": result["scan"], "summary": ledger["summary"]}
+
+
+def _sync_all_archive_ledgers(archive_root: Path) -> None:
+    from .archive_sources import public_archives, state_directory
+    from .ledger import sync_item_ledger
+    for archive in public_archives(_archival_root()):
+        state_root = state_directory(_archival_root(), archive["id"])
+        index_path = state_root / "saved-index.json"
+        if index_path.is_file():
+            sync_item_ledger(
+                index_path, state_root / "item-ledger.json", archive_root,
+                state_root / "manual-review.json",
+            )
+
+
+def _archival_status(settings_path: Path, archive_id: str) -> dict[str, object]:
+    paths = _archival_paths(archive_id)
     settings = _read_settings(settings_path)
     index: dict[str, object] = {}
     ledger: dict[str, object] = {}
@@ -249,10 +356,10 @@ def _archival_status(settings_path: Path) -> dict[str, object]:
     }
 
 
-def _latest_batch_review(request_id: str, settings_path: Path) -> dict[str, object]:
+def _latest_batch_review(request_id: str, settings_path: Path, archive_id: str) -> dict[str, object]:
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(archive_id)
     batches = sorted(paths["batches"].glob("*-oldest-*.json")) if paths["batches"].is_dir() else []
     if not batches:
         return {"summary": {"items": 0, "present": 0, "deleted": 0, "failed": 0}, "items": []}
@@ -264,10 +371,10 @@ def _latest_batch_review(request_id: str, settings_path: Path) -> dict[str, obje
     return review
 
 
-def _archival_bundle(source_id: str, request_id: str, settings_path: Path) -> Path:
+def _archival_bundle(source_id: str, request_id: str, settings_path: Path, archive_id: str) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", source_id):
         raise ProtocolError("invalid_request", "Invalid archival item", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(archive_id)
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id).resolve()
     try:
@@ -282,8 +389,8 @@ def _archival_bundle(source_id: str, request_id: str, settings_path: Path) -> Pa
     return bundle
 
 
-def _reveal_archival_item(source_id: str, request_id: str, settings_path: Path) -> dict[str, object]:
-    bundle = _archival_bundle(source_id, request_id, settings_path)
+def _reveal_archival_item(source_id: str, request_id: str, settings_path: Path, archive_id: str) -> dict[str, object]:
+    bundle = _archival_bundle(source_id, request_id, settings_path, archive_id)
     try:
         subprocess.run(["open", "-R", str(bundle)], check=True, capture_output=True)
     except (OSError, subprocess.CalledProcessError):
@@ -291,28 +398,47 @@ def _reveal_archival_item(source_id: str, request_id: str, settings_path: Path) 
     return {"state": "revealed"}
 
 
-def _delete_archival_item(source_id: str, request_id: str, settings_path: Path) -> dict[str, object]:
-    _archival_bundle(source_id, request_id, settings_path)
+def _delete_archival_item(source_id: str, request_id: str, settings_path: Path, archive_id: str) -> dict[str, object]:
+    _archival_bundle(source_id, request_id, settings_path, archive_id)
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(archive_id)
     from .deletion import ArchiveDeletionError, delete_archive_item
     try:
         result = delete_archive_item(paths["ledger"], archive_root, Path.home() / ".Trash", source_id)
     except ArchiveDeletionError:
         raise ProtocolError("deletion_failed", "Archived item could not be moved to Trash", request_id) from None
+    from .archive_sources import public_archives, state_directory
+    from .ledger import identity_key, set_item_status
+    for archive in public_archives(_archival_root()):
+        if archive.get("id") == archive_id:
+            continue
+        other_root = state_directory(_archival_root(), archive["id"])
+        other_ledger = other_root / "item-ledger.json"
+        try:
+            value = json.loads(other_ledger.read_text(encoding="utf-8"))
+            if identity_key("instagram", source_id) in value.get("items", {}):
+                set_item_status(other_ledger, "instagram", source_id, "retired-deleted", "User removed from archive")
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            continue
     return {"state": "deleted", "source_id": result["source_id"]}
 
 
-def _rename_archival_item(source_id: str, title: str, request_id: str, settings_path: Path) -> dict[str, object]:
-    _archival_bundle(source_id, request_id, settings_path)
+def _rename_archival_item(source_id: str, title: str, request_id: str, settings_path: Path, archive_id: str) -> dict[str, object]:
+    _archival_bundle(source_id, request_id, settings_path, archive_id)
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(archive_id)
     from .deletion import ArchiveDeletionError, rename_archive_item
+    from .archive_sources import public_archives, state_directory
+    related = [
+        state_directory(_archival_root(), archive["id"])
+        for archive in public_archives(_archival_root()) if archive.get("id") != archive_id
+    ]
     try:
         result = rename_archive_item(
-            paths["ledger"], paths["index"], paths["batches"], archive_root, source_id, title
+            paths["ledger"], paths["index"], paths["batches"], archive_root, source_id, title,
+            related_state_roots=related,
         )
     except ArchiveDeletionError as error:
         raise ProtocolError("rename_failed", str(error), request_id) from None
@@ -321,11 +447,11 @@ def _rename_archival_item(source_id: str, title: str, request_id: str, settings_
     return {"state": "renamed", "source_id": result["source_id"], "title": result["title"]}
 
 
-def _scan_saved(request_id: str, settings_path: Path) -> dict[str, object]:
+def _scan_saved(request_id: str, settings_path: Path, archive_id: str) -> dict[str, object]:
     settings = _read_settings(settings_path)
     profile = _configured_path(settings, "firefox_profile", request_id)
     archive_root = _configured_path(settings, "archive_root", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(archive_id)
     from .ledger import sync_item_ledger
     from .saved import SavedEnumerationError, sync_saved_incremental, enumerate_saved
     try:
@@ -357,7 +483,7 @@ def _scan_saved(request_id: str, settings_path: Path) -> dict[str, object]:
 def _harvest_archival_batch(
     payload: dict[str, object], request_id: str, settings_path: Path
 ) -> dict[str, object]:
-    if set(payload) != {"count", "min_delay", "max_delay"}:
+    if set(payload) != {"archive_id", "count", "min_delay", "max_delay"} or not isinstance(payload.get("archive_id"), str):
         raise ProtocolError("invalid_request", "Archival batch requires count and delay range", request_id)
     count, minimum, maximum = payload.get("count"), payload.get("min_delay"), payload.get("max_delay")
     if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 25:
@@ -371,13 +497,16 @@ def _harvest_archival_batch(
     settings = _read_settings(settings_path)
     profile = _configured_path(settings, "firefox_profile", request_id)
     archive_root = _configured_path(settings, "archive_root", request_id)
-    paths = _archival_paths()
+    paths = _archival_paths(payload["archive_id"])
     if not paths["index"].is_file() or not paths["ledger"].is_file():
         raise ProtocolError("archival_state_unavailable", "Scan saved posts before harvesting a batch", request_id)
     from .batch import BatchError, harvest_oldest, new_batch_path
     from .ledger import sync_item_ledger
     batch_path = new_batch_path(paths["batches"], count)
     try:
+        # Refresh every configured queue against the shared output directory so
+        # a post acquired through one collection is not downloaded again through another.
+        _sync_all_archive_ledgers(archive_root)
         try:
             batch = harvest_oldest(
                 paths["index"], batch_path, profile, archive_root, count,
@@ -386,9 +515,8 @@ def _harvest_archival_batch(
             )
         finally:
             if batch_path.is_file():
-                ledger = sync_item_ledger(
-                    paths["index"], paths["ledger"], archive_root, paths["manual_review"]
-                )
+                _sync_all_archive_ledgers(archive_root)
+                ledger = json.loads(paths["ledger"].read_text(encoding="utf-8"))
     except BatchError as error:
         message = str(error).casefold()
         code = "authentication_stop" if "authentication" in message or "rate-limit" in message else "batch_failed"
@@ -493,8 +621,8 @@ def _open_output_folder(request_id: str, settings_path: Path) -> dict[str, objec
     return {"state": "opened"}
 
 
-def _open_failure_log(request_id: str) -> dict[str, object]:
-    paths = _archival_paths()
+def _open_failure_log(request_id: str, archive_id: str) -> dict[str, object]:
+    paths = _archival_paths(archive_id)
     failure_log = paths["manual_review"]
     readable_log = paths["root"] / "failure-log.txt"
     if not failure_log.is_file():
@@ -759,36 +887,67 @@ def handle_message(
             "ok": True,
             "result": result,
         }
-    if command == "get_archival_status":
+    if command == "list_archives":
         if payload:
-            raise ProtocolError("invalid_request", "get_archival_status payload must be empty", request_id)
+            raise ProtocolError("invalid_request", "list_archives payload must be empty", request_id)
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": _archive_list()}
+    if command == "save_archive_source":
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _save_archive_source(payload, request_id)}
+    if command == "rename_archive_source":
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _rename_archive_source(payload, request_id)}
+    if command == "remove_archive_source":
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _remove_archive_source(payload, request_id)}
+    if command == "get_archive_scan_context":
+        if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+            raise ProtocolError("invalid_request", "Archive ID is required", request_id)
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _archive_scan_context(payload["archive_id"], request_id)}
+    if command == "sync_archive_items":
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _sync_archive_items(payload, request_id, settings_path or _settings_path())}
+    if command == "get_archival_status":
+        if payload == {}:
+            payload = {"archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+            raise ProtocolError("invalid_request", "Archive ID is required", request_id)
         return {
             "version": PROTOCOL_VERSION,
             "request_id": request_id,
             "ok": True,
-            "result": _archival_status(settings_path or _settings_path()),
+            "result": _archival_status(settings_path or _settings_path(), payload["archive_id"]),
         }
     if command == "get_latest_batch_review":
-        if payload:
-            raise ProtocolError("invalid_request", "get_latest_batch_review payload must be empty", request_id)
+        if payload == {}:
+            payload = {"archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+            raise ProtocolError("invalid_request", "Archive ID is required", request_id)
         return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
-                "result": _latest_batch_review(request_id, settings_path or _settings_path())}
+                "result": _latest_batch_review(request_id, settings_path or _settings_path(), payload["archive_id"])}
     if command in {"reveal_archival_item", "delete_archival_item"}:
-        if set(payload) != {"source_id"} or not isinstance(payload.get("source_id"), str):
+        if set(payload) == {"source_id"}:
+            payload = {**payload, "archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id", "source_id"} or not all(isinstance(payload.get(key), str) for key in payload):
             raise ProtocolError("invalid_request", "One archival source ID is required", request_id)
         result = (_reveal_archival_item if command == "reveal_archival_item" else _delete_archival_item)(
-            payload["source_id"], request_id, settings_path or _settings_path()
+            payload["source_id"], request_id, settings_path or _settings_path(), payload["archive_id"]
         )
         return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
     if command == "rename_archival_item":
-        if set(payload) != {"source_id", "title"} or not all(isinstance(payload.get(key), str) for key in ("source_id", "title")):
+        if set(payload) == {"source_id", "title"}:
+            payload = {**payload, "archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id", "source_id", "title"} or not all(isinstance(payload.get(key), str) for key in payload):
             raise ProtocolError("invalid_request", "One archival source ID and title are required", request_id)
-        result = _rename_archival_item(payload["source_id"], payload["title"], request_id, settings_path or _settings_path())
+        result = _rename_archival_item(payload["source_id"], payload["title"], request_id, settings_path or _settings_path(), payload["archive_id"])
         return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
     if command == "scan_saved_posts":
-        if payload:
-            raise ProtocolError("invalid_request", "scan_saved_posts payload must be empty", request_id)
-        result = _scan_saved(request_id, settings_path or _settings_path())
+        if payload == {}:
+            payload = {"archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+            raise ProtocolError("invalid_request", "Archive ID is required", request_id)
+        result = _scan_saved(request_id, settings_path or _settings_path(), payload["archive_id"])
         return {
             "version": PROTOCOL_VERSION,
             "request_id": request_id,
@@ -796,6 +955,8 @@ def handle_message(
             "result": result,
         }
     if command == "harvest_archival_batch":
+        if set(payload) == {"count", "min_delay", "max_delay"}:
+            payload = {**payload, "archive_id": _single_archive_id(request_id)}
         result = _harvest_archival_batch(payload, request_id, settings_path or _settings_path())
         return {
             "version": PROTOCOL_VERSION,
@@ -823,13 +984,15 @@ def handle_message(
             "result": _open_output_folder(request_id, settings_path or _settings_path()),
         }
     if command == "open_failure_log":
-        if payload:
-            raise ProtocolError("invalid_request", "open_failure_log payload must be empty", request_id)
+        if payload == {}:
+            payload = {"archive_id": _single_archive_id(request_id)}
+        if set(payload) != {"archive_id"} or not isinstance(payload.get("archive_id"), str):
+            raise ProtocolError("invalid_request", "Archive ID is required", request_id)
         return {
             "version": PROTOCOL_VERSION,
             "request_id": request_id,
             "ok": True,
-            "result": _open_failure_log(request_id),
+            "result": _open_failure_log(request_id, payload["archive_id"]),
         }
     if command == "open_diagnostics":
         if payload:

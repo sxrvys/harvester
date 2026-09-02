@@ -47,6 +47,15 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(report["summary"]["warnings"], 0)
 
     @patch("harvester.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
+    def test_numbered_archival_bundle_does_not_require_id_in_folder_name(self, _probe: object) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_bundle(root, "0044__palestinians-displaced-1967", "ABC")
+            report = audit_archive(root)
+            self.assertEqual(report["summary"]["errors"], 0)
+            self.assertEqual(report["summary"]["warnings"], 0)
+
+    @patch("harvester.audit.probe", return_value={"streams": [{"codec_type": "video"}]})
     def test_detects_hash_size_unrecorded_and_duplicate_identity(self, _probe: object) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -69,4 +78,3 @@ class AuditTests(unittest.TestCase):
             (bundle / "metadata.json").write_text("not json", encoding="utf-8")
             report = audit_archive(Path(temporary))
             self.assertEqual(report["issues"][0]["code"], "invalid_metadata")
-

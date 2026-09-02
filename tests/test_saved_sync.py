@@ -3,10 +3,11 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvester.saved import IncrementalBoundaryError, audio_metadata_from_node, merge_incremental_index
+from harvester.saved import IncrementalBoundaryError, audio_metadata_from_node, merge_incremental_index, sync_supplied_saved_items
 
 
 def item(source_id: str) -> dict[str, object]:
@@ -30,6 +31,16 @@ def index(*oldest_to_newest: str) -> dict[str, object]:
 
 
 class SavedSyncTests(unittest.TestCase):
+    def test_supplied_page_items_create_an_oldest_first_index(self) -> None:
+        with TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "index.json"
+            result = sync_supplied_saved_items([
+                {"source_id": "new", "source_url": "https://www.instagram.com/p/new/"},
+                {"source_id": "old", "source_url": "https://www.instagram.com/p/old/"},
+            ], destination)
+        self.assertEqual([entry["source_id"] for entry in result["index"]["items"]], ["old", "new"])
+        self.assertEqual(result["scan"]["new_count"], 2)
+
     def test_adds_new_items_in_oldest_first_order_and_stops_at_five_known(self) -> None:
         existing = index("old-1", "old-2", "old-3", "old-4", "old-5", "old-6")
         scanned = [

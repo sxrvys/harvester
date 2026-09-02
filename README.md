@@ -1,262 +1,217 @@
 # Harvester
 
-Harvester is a local-first creative tool for turning media the user intentionally saved
-online into durable, predictable creative-media bundles.
+See something strange, beautiful, useful, or inspiring online? Harvest it.
 
-It is for artists, musicians, editors, researchers, and curious people who encounter
-unusual source material they may want to sample, study, edit, or use in VJ work later.
-Harvester preserves the selected original, prepares a useful audio derivative, and
-records provenance in ordinary files under the user's control.
+Harvester is a local-first Firefox extension for artists, musicians, editors,
+researchers, and curious people who collect source material for later. It saves the
+original media, makes a practical audio derivative, and records enough provenance
+to remember where it came from—all in ordinary files on your Mac.
 
-Harvester is not a general scraper, feed crawler, surveillance tool, playlist
-downloader, media-library service, or batch converter. It never scans unrelated
-links or captures network traffic.
+It works with individual Instagram, YouTube, and Reddit posts, visible video or
+audio on other sites, and one local file at a time. It can also work through your
+Instagram Saved collection in small, deliberately paced batches, starting with the
+oldest things you saved.
 
-Its privacy, ownership, and
-least-privilege commitments are defined in
-[`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md). Current and intended
-licensing status is recorded in [`LICENSING.md`](LICENSING.md).
+Harvester is intentionally focused. It is not a general scraper, feed crawler,
+playlist downloader, surveillance tool, media library, or batch converter. It
+only acts when you ask it to harvest something.
 
-The Firefox extension turns one explicitly selected Instagram, YouTube,
-or Reddit post—or one visible media element or local file—into a local bundle
-containing preserved originals, useful derivatives, and provenance metadata.
-Instagram also has a separate, ledger-backed archival workflow for the user's
-Saved collection. The project does not access a browser session or account unless
-the user explicitly initiates an operation that requires it.
+## What it can do
+
+- Harvest individual Instagram posts and Reels, including every media item in a
+  carousel.
+- Natively harvest individual YouTube videos and Reddit media posts.
+- Let you point at one visible video or audio player on another website and make a
+  bounded attempt to preserve it.
+- Turn one local audio or video file into a tidy, self-contained Harvester bundle.
+- Maintain multiple Instagram Saved archives or collections, each with its own
+  queue and progress, and work through them oldest-first in small paced batches.
+- Recognize posts shared between collections and keep one copy instead of
+  downloading duplicates.
+- Create a practical audio derivative automatically. Choose 24-bit or 16-bit WAV,
+  FLAC, or 320/192 kbps MP3 in Settings.
+- Keep the original media, useful derivatives, source attribution, and technical
+  metadata together in an ordinary folder you control.
+- Review the latest archival batch, rename its folders, reveal an item in Finder,
+  or move an unwanted item safely to Trash.
+- Prepare a readable, privacy-conscious bug report when something fails—without
+  silently sending anything anywhere.
+
+## Why artists might care
+
+Sample- and collage-based work often begins with a fragment: an unusual voice, a
+few seconds of motion, a degraded public film, an accidental rhythm, or a visual
+texture you cannot stop thinking about. Finding the fragment is the fun part.
+Remembering where it came from, extracting usable audio, and finding it again six
+months later usually is not.
+
+Harvester does that clerical work while the discovery is still fresh. It preserves
+the source, makes an immediately useful audio file, and keeps provenance beside the
+media. Carousels stay together as one post; long-lived Saved collections can be
+worked through gradually; and everything lands in normal files that can go straight
+into a sampler, DAW, NLE, VJ setup, collage folder, or research notebook. Harvester
+does not try to become your creative environment. It brings interesting material to
+the environment you already use.
 
 ## Install on macOS
 
-Harvester has two required parts: the Mozilla-signed Firefox extension and a local
-macOS companion that performs downloading and media processing.
+Harvester has two parts: the Firefox extension you click and a small local companion
+that handles downloads and media processing.
 
-1. Install [Homebrew](https://brew.sh/) if it is not already installed.
-2. In Terminal, install the media prerequisites:
+1. Install [Homebrew](https://brew.sh/) if you do not already have it.
+2. Open Terminal and install Harvester's media tools:
 
    ```sh
    brew install python ffmpeg yt-dlp deno
    ```
 
-3. Download and extract `harvester-macos-companion-1.0.1.tar.gz` from the GitHub
-   release. In Terminal, enter its extracted folder and run:
+3. Download and extract `harvester-macos-companion-1.0.2.tar.gz`. In Terminal,
+   enter the extracted folder and run:
 
    ```sh
    scripts/install-macos-companion
    ```
 
-4. Download the Mozilla-signed `.xpi` from the same release.
-5. In Firefox, open `about:addons`, choose the gear menu, select
-   **Install Add-on From File…**, and choose the `.xpi`.
-6. Open Harvester. **Local companion ready** confirms the two parts can communicate.
+4. Download the Mozilla-signed `.xpi`.
+5. In Firefox, open `about:addons`, click the gear, choose **Install Add-on From
+   File…**, and select the `.xpi`.
+6. Open Harvester. If it says **Local companion ready**, you're ready to go.
 
-Harvester V1.0.1 supports Firefox desktop 142 or newer on macOS.
+V1.0.2 supports Firefox desktop 142 or newer on macOS.
 
 ## Getting started
 
-- Open a single Instagram post or Reel, YouTube watch page, or Reddit post and
-  click **Harvest this**.
-- On another site, click **Select visible media**, point at one visible video or
-  audio element, and confirm **Harvest media**.
-- Use **Harvest local file** to preserve and prepare one file selected through Finder.
-- Open **Archival Harvest** to scan your own Instagram Saved collection and run a
-  paced oldest-first batch. Review, reveal, rename, or move a recent item to Trash.
-- Use **Settings** to choose the output folder and one global audio format.
+Open **Settings** first. Choose an output folder with the Finder button, choose the
+audio format you normally want, and leave the Firefox profile path alone unless
+you deliberately use a different Firefox profile. Once the popup says **Local
+companion ready**, pick the workflow that matches what you found:
 
-Keep Firefox open while a harvest or archival batch is running. Only acquire and
-use media you are legally permitted to preserve.
+- **Instagram, YouTube, or Reddit:** Open one post or video and click **Harvest
+  this**.
+- **Another website:** Click **Select visible media**, point at one visible video
+  or audio player, then click **Harvest media**.
+- **A file on your Mac:** Click **Harvest local file** and choose one audio or video
+  file in Finder.
+- **Your Instagram Saved collections:** Open **Archival Harvest**, click **+**, and
+  paste the URL of an Instagram Saved page or collection—or use one already open
+  in Firefox. Give it a name, scan it, and run a small oldest-first batch. Add as
+  many collections as you actually use; overlapping posts are downloaded only
+  once. When a batch finishes, you can review, rename, reveal, or move individual
+  results to Trash.
+- **Output and audio format:** Open **Settings** to choose where files go and which
+  audio preset Harvester should create.
 
-## Privacy and bug reports
+Keep Firefox open while a harvest is running. Please only harvest material you are
+legally allowed to preserve and use.
 
-Harvester has no account, cloud service, analytics, telemetry, advertising, or
-automatic bug submission. Settings and archival state stay on the Mac. Firefox
-authentication remains Firefox-owned.
+## If something does not work
 
-**Settings → Prepare bug report** previews safe technical details. A page address
-is excluded by default and can be added explicitly in sanitized form. Credentials,
-query parameters, fragments, selected media URLs, cookies, headers, filesystem
-paths, and raw downloader output are never included. The user can copy the report
-or open a prefilled GitHub issue and must submit it personally. A GitHub account is
-required to create an issue.
+- Confirm the popup says **Local companion ready**. If it does not, reinstall the
+  companion and restart Firefox.
+- Keep the source tab open until Harvester reports completion.
+- A visible-media harvest can fail cleanly when a player uses `blob:`/MSE, DRM, an
+  inaccessible frame, an expiring address, or authentication the companion cannot
+  use. Harvester does not inspect network traffic or capture private headers to get
+  around those boundaries.
+- In **Settings**, open the failure log or choose **Prepare bug report**. You can
+  inspect and copy the safe diagnostic text before deciding whether to open a
+  GitHub issue.
 
-## Current status
+## What you get
 
-- Firefox and its native companion have completed live acceptance for one-off
-  Instagram, YouTube, and Reddit harvesting.
-- The bounded visible-media picker has passed on an unsupported iframe-based page.
-- One-file local harvesting has passed with a Finder-selected Archive.org video;
-  its preserved original and playable derivative were byte-identical to the source.
-- Audio derivatives support five global presets: two WAV, one FLAC, and two MP3.
-- The Instagram Archival Harvest screen can incrementally scan Saved posts and run
-  explicitly initiated, paced, oldest-first batches against its private ledger.
-- Settings can choose an output folder through Finder and automatically detect
-  Firefox's declared default profile, with manual profile editing kept advanced.
-- V1.0.1 passes 93 automated tests and Mozilla extension validation with zero
-  errors, warnings, or notices. Its recent-batch and privacy-safe bug-report
-  workflows passed live Firefox acceptance.
-- No code from RADIO HARVEST is used or required.
+Each harvest becomes a self-contained folder with:
 
-See [`docs/v0-technical-plan.md`](docs/v0-technical-plan.md) and
-[`docs/instagram-acquisition.md`](docs/instagram-acquisition.md).
+- the preserved original;
+- a playable video copy when applicable;
+- one audio derivative in your chosen WAV, FLAC, or MP3 preset; and
+- `metadata.json`, containing provenance and useful media facts.
 
-## Browser extension direction
+Instagram archival folders have compact, naturally sorted names such as
+`0044__palestinians-displaced-1967`. The Instagram identifier still lives in the
+metadata and private ledger, where it is useful, instead of cluttering Finder.
 
-The intended interface is a small Firefox-first WebExtension backed by the
-local harvester engine through Native Messaging. Its primary action is an
-explicit **Harvest this** command for the current page or pasted URL. It does
-not inspect traffic, collect browsing history, retain cookies, send telemetry,
-or become a media-library application.
+## Privacy
 
-The agreed interface, permission boundary, resource limits, and native message
-contract are recorded in
-[`docs/browser-extension-spec.md`](docs/browser-extension-spec.md).
+No Harvester account. No cloud service. No analytics, advertising, telemetry, or
+automatic bug reports. Your settings, archive state, diagnostics, and harvested
+media stay on your Mac. Firefox remains in charge of Firefox authentication.
 
-The proof-of-concept host reads its private configuration from
-`~/.config/harvester/settings.json` (or `HARVESTER_SETTINGS_PATH`). The Firefox
-Settings screen stores the output folder and explicit Firefox profile there;
-the file is written atomically with user-only permissions. The popup enables
-**Harvest this** only when both paths are configured and valid, and the native
-host verifies them again before every run.
+If something goes wrong, **Settings → Prepare bug report** shows you exactly what
+would be shared. Page addresses are excluded unless you explicitly add a sanitized
+version. Reports never include cookies, credentials, query parameters, media URLs,
+headers, filesystem paths, or raw downloader output. You decide whether to copy the
+report or open a GitHub issue, and nothing is submitted for you.
 
-Active harvests are owned by the extension background script, so closing the
-popup does not interrupt work. Safe progress and completion state persist in
-local extension storage. One-off harvests create bundles without lifecycle-ledger
-bookkeeping; the ledger is reserved for archival queues. **Open output folder**
-delegates to the verified native path.
+The fuller promises live in [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md).
+The project's current licensing position is in [`LICENSING.md`](LICENSING.md).
 
-On unsupported HTTP(S) pages, **Select visible media** activates a temporary,
-one-shot picker. It follows the user's pointer into accessible frames, outlines
-only the hovered `<video>` or `<audio>`, and displays **Harvest media** for an
-unambiguous selection. It reads only that selected element's ordinary media URLs
-and performs one bounded attempt; it does not scan page content or inspect traffic.
-The accepted proof is recorded in
-[`docs/unsupported-site-picker-acceptance.md`](docs/unsupported-site-picker-acceptance.md).
+## A note about Archival Harvest
 
-Canonical YouTube watch pages use a separate bounded adapter behind **Harvest
-this**. It accepts exactly one video ID and forces no-playlist mode,
-applies the same 10-minute and 500 MB ceilings, and never enumerates channels,
-playlists, search results, recommendations, or account collections.
-The first live Firefox acceptance passed on 2026-08-30 with YouTube video
-`URwmZq70_DU`, producing a preserved WebM, playable WebM, and 48 kHz/24-bit
-stereo WAV without adding an archival-ledger entry.
+Archival Harvest exists for one specific job: slowly working through your own
+Instagram Saved pages and collections without losing your place. Each configured
+collection has its own queue and progress, while shared posts use one copy of the
+media on disk.
 
-Canonical Reddit post pages use a separate bounded adapter behind **Harvest
-this**. It accepts one `/r/.../comments/<post-id>/<slug>/` URL, acquires at most
-one attached media result, applies the same resource limits, and never enumerates
-feeds, subreddits, profiles, comments, Saved collections, or related posts.
-Its first live Firefox acceptance passed on 2026-08-30 with a single Reddit post,
-producing a preserved MP4, identical playable MP4, and configured WAV derivative
-without adding an archival-ledger entry.
+Scanning starts with the newest saved posts and stops after five consecutive posts
+already known to the private ledger. Harvesting then works oldest-first, one item at
+a time. You choose a batch size from 1–25 and a randomized delay from 10–300 seconds.
+Ordinary failures are not retried during the same batch, and authentication or
+rate-limit trouble stops the run.
 
-Settings provide one global audio-derivative preset for future bundles:
-Production WAV (48 kHz/24-bit), Standard WAV (44.1 kHz/16-bit), FLAC
-(48 kHz/24-bit), MP3 (320 kbps), or MP3 (192 kbps). Production WAV remains the
-default. Harvester preserves the acquired original and generates one audio
-derivative; it does not offer per-harvest choices, video transcoding, or
-retroactive batch conversion. Each derivative records its named encoding preset.
+Automated access can trigger Instagram restrictions. Larger batches and shorter
+delays increase that risk, so Harvester keeps hard minimums and makes you start each
+batch yourself. You are responsible for deciding whether and how to proceed.
 
-**Harvest local file** opens a native Finder picker and ingests exactly one audio
-or video file. The selected path never enters the extension or metadata; only the
-basename, size, content hash, duration, and media facts are retained. Harvester
-preserves the original, generates the configured audio derivative when applicable,
-and does not accept folders, watch directories, multiple selection, or batch
-conversion. The accepted proof is recorded in
-[`docs/local-file-acceptance.md`](docs/local-file-acceptance.md).
+## For contributors and curious programmers
 
-The extension also has a distinct Instagram **Archival Harvest** screen backed by
-the private Saved index and lifecycle ledger. It exposes explicit newest-first
-incremental scanning to a five-known-item boundary and explicit oldest-first
-batches with size 1–25 and randomized 10–300 second delay bounds. Downloads are
-sequential, ordinary failures are not retried, and authentication/rate-limit
-signals stop the batch. This workflow is Instagram-only and remains separate
-from ledger-free one-off harvests.
+The Firefox extension is plain HTML, CSS, and JavaScript under
+[`extension/firefox`](extension/firefox). It talks through Firefox Native Messaging
+to the Python companion under [`src/harvester`](src/harvester). There is no bundler,
+transpiler, minifier, hosted backend, or Node runtime in the product.
 
-Acceptance contracts and manual proof results for the newer workflows live in
-[`docs/reddit-single-post-acceptance.md`](docs/reddit-single-post-acceptance.md),
-[`docs/archival-harvest-acceptance.md`](docs/archival-harvest-acceptance.md), and
-[`docs/local-file-acceptance.md`](docs/local-file-acceptance.md).
+Harvester's boundaries are deliberate:
 
-The approved glyph master and an editable theme-adaptive SVG live under
-[`assets/brand/`](assets/brand/). The SVG uses the surrounding text color, so it
-can render black in light browser themes and white in dark browser themes.
+- one explicitly chosen item per ordinary harvest;
+- no page-wide scraping or network-traffic inspection;
+- no playlists, feeds, profiles, recommendations, or unrelated links;
+- bounded downloads of no more than 10 minutes or 500 MB;
+- no folders, watch directories, or multi-file local conversion; and
+- no silent deletion—archival removal verifies identity, moves one bundle to macOS
+  Trash, and marks it retired so it will not be downloaded again.
 
-## Local checks
+The implementation contracts and acceptance records are in [`docs`](docs),
+including the [browser-extension specification](docs/browser-extension-spec.md),
+[visible-media acceptance test](docs/unsupported-site-picker-acceptance.md), and
+[archival acceptance test](docs/archival-harvest-acceptance.md).
 
-Requires Python 3.11+ and FFmpeg/FFprobe on `PATH`.
+### Run the checks
+
+Harvester requires Python 3.11+ and FFmpeg/FFprobe on `PATH`.
 
 ```sh
 python3 -m unittest discover -s tests -v
 ```
 
-Firefox V1 release artifacts are built separately because the browser extension
-communicates with a local macOS companion:
+The release test suite and Mozilla's extension validator must pass before a package
+is published.
+
+### Build the two release packages
 
 ```sh
 scripts/build-firefox-extension
 scripts/build-macos-companion
 ```
 
-The companion package contains its installer and Python source but no settings,
-authentication material, ledger, or media. See
-[`docs/release-checklist.md`](docs/release-checklist.md) for validation, native
-registration, and Mozilla-signing requirements.
+The companion archive includes the installer and Python source, but no user
+settings, authentication material, ledger, diagnostics, or harvested media. See
+[`docs/release-checklist.md`](docs/release-checklist.md) for the complete release
+procedure.
 
-The V1 release target is Firefox desktop 142 or newer on macOS. The extension
-declares that it collects or transmits no data, and the installed companion keeps
-settings, archival state, diagnostics, and output local to the user's machine.
-Settings exposes a plain-text view of the newest 100 sanitized operational
-failures for support and contributor debugging; internal JSON, sensitive URLs,
-authentication material, and local source paths are never opened or displayed.
+## Why Harvester exists
 
-Offline archive checks and naming review:
+Interesting source material has a habit of disappearing—or becoming impossible to
+find the moment inspiration strikes. Harvester is a small tool for catching those
+fragments while respecting the person using it, the machine it runs on, and the
+limits of the job.
 
-```sh
-harvester audit --archive-root archive
-harvester names-preview --archive-root archive
-harvester batch-review --batch state/BATCH.json
-```
-
-The audit is read-only. Naming preview never renames a bundle; it shows proposed
-bounded names and honors `manual_title` / `manual_creator` metadata overrides.
-Batch review is also read-only. It combines batch, ledger, and bundle metadata
-into a concise review report with lifecycle status, media inventory, duration,
-caption excerpt, naming proposal, and platform-provided audio attribution.
-
-`batch-oldest` creates a unique timestamped record under `state/batches/` when
-`--state` is omitted. After the bounded run it synchronizes the lifecycle ledger
-and prints the batch review automatically. To resume an interrupted run, pass
-its exact record back with `--state`; terminal failures are not retried.
-The first-corpus naming analysis and editorial proposals are recorded in
-[`docs/naming-review.md`](docs/naming-review.md).
-
-Media asset filenames omit the Instagram ID and use the readable bundle stem:
-
-```text
-<readable-stem>__audio.wav
-<readable-stem>__video.mp4
-original/<readable-stem>__original.mp4
-```
-
-Metadata, the Saved index, and `state/item-ledger.json` retain the stable identity.
-File presence and filenames are never used to decide whether an item is eligible
-for reacquisition.
-
-Archival bundle folders use compact, naturally sorted names such as
-`0044__palestinians-displaced-1967`. Instagram identity remains in metadata and
-the private ledger instead of cluttering the Finder name.
-
-## Recoverable deletion
-
-The core deletion action requires an exact ledgered item and an explicit Trash
-destination. It verifies the bundle's embedded source identity, moves only that
-bundle, and durably records `retired-deleted` so it cannot be reacquired:
-
-```sh
-harvester archive-delete SOURCE_ID --trash-root /path/to/trash
-```
-
-The operation refuses missing bundles, identity mismatches, paths outside the
-archive root, and existing Trash destinations. Archival Harvest exposes it as a
-confirmed, one-item-at-a-time **Move to Trash** action for the latest batch.
-
-Live acquisition requires an exact URL, an exact Firefox profile path, and the
-user's explicit authorization for that run. It is intentionally not configured
-through a default profile or stored cookie file.
+Find something. Save it with context. Make something new.

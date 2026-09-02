@@ -330,6 +330,31 @@ zero errors, notices, or warnings. Remaining work is final artifact rebuild,
 Mozilla 1.0.1 signing, signed-XPI smoke test, license/repository visibility choice,
 and GitHub release publication.
 
+## V1.0.2 first-release candidate
+
+V1.0.2 adds the missing first-run archive workflow. Archival Harvest now starts
+with an empty user-managed list and accepts multiple explicitly supplied Instagram
+Saved-page or collection URLs. Archives can be added from a pasted URL or an open
+Instagram page, named, renamed, edited, reopened, selected independently, and
+removed without deleting harvested media. Each has an isolated queue and history;
+the output archive is shared, so metadata identity deduplicates posts appearing in
+more than one collection. Named collections whose thumbnails do not expose normal
+links use a bounded, visible-tile resolver only during the explicit scan.
+
+The owner completed a clean pre-release archival-state reset and tested the normal
+new-user flow. The main Saved page indexed 468 items; a second two-item collection
+indexed independently. Scanning one collection did not scan the other, successful
+scan-created tabs closed automatically, and progress correctly reported two of two
+identified tiles. A one-item batch harvested a five-video carousel as one bundle
+with five originals, five video derivatives, and five audio derivatives. The same
+post occurs in both archives and is represented by one on-disk bundle while both
+ledgers recognize it as complete. The current archive audit reports 7 bundles,
+33 files, zero errors, and zero warnings.
+
+The 1.0.2 release still requires the final automated checks, artifact inspection,
+Mozilla signing, signed-XPI smoke test, and GitHub release publication. Repository
+visibility and licensing remain separate owner decisions.
+
 ## Working preferences
 
 - Keep communication conversational and concrete.

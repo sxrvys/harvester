@@ -16,6 +16,7 @@ from harvester.native_host import (
     MAX_MESSAGE_BYTES, ProtocolError, _detect_firefox_profile, _record_diagnostic,
     handle_message, read_message, write_message,
 )
+from harvester.archive_sources import save_archive, state_directory
 
 
 def framed(value: object) -> bytes:
@@ -255,16 +256,19 @@ class NativeHostTests(unittest.TestCase):
     def test_archival_status_reads_private_index_and_ledger(self) -> None:
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "saved-index.json").write_text(json.dumps({
+            archive = save_archive(root, "Test", "https://www.instagram.com/me/saved/all-posts/")
+            archive_state = state_directory(root, archive["id"])
+            archive_state.mkdir(parents=True)
+            (archive_state / "saved-index.json").write_text(json.dumps({
                 "complete": True, "count": 12, "last_incremental_sync_at": "now",
                 "last_incremental_sync": {"new_count": 2, "boundary": "known-streak"},
             }), encoding="utf-8")
-            (root / "item-ledger.json").write_text(json.dumps({
+            (archive_state / "item-ledger.json").write_text(json.dumps({
                 "summary": {"total": 12, "discovered": 7, "complete": 5},
             }), encoding="utf-8")
             with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": str(root)}):
                 response = handle_message(
-                    {"version": 1, "command": "get_archival_status", "request_id": "abc", "payload": {}},
+                    {"version": 1, "command": "get_archival_status", "request_id": "abc", "payload": {"archive_id": archive["id"]}},
                     settings_path=root / "missing-settings.json",
                 )
         self.assertEqual(response["result"]["indexed"], 12)
@@ -274,30 +278,34 @@ class NativeHostTests(unittest.TestCase):
     def test_open_failure_log_opens_only_the_private_manual_review_file(self) -> None:
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
-            failure_log = root / "manual-review.json"
+            archive = save_archive(root, "Test", "https://www.instagram.com/me/saved/all-posts/")
+            archive_state = state_directory(root, archive["id"])
+            archive_state.mkdir(parents=True)
+            failure_log = archive_state / "manual-review.json"
             failure_log.write_text('{"items": []}', encoding="utf-8")
             with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": str(root)}), patch(
                 "harvester.native_host.subprocess.run"
             ) as opened:
                 response = handle_message({
                     "version": 1, "command": "open_failure_log",
-                    "request_id": "abc", "payload": {},
+                    "request_id": "abc", "payload": {"archive_id": archive["id"]},
                 })
             self.assertEqual(response["result"], {"state": "opened"})
-            readable_log = root / "failure-log.txt"
+            readable_log = archive_state / "failure-log.txt"
             opened.assert_called_once_with(["open", str(readable_log)], check=True, capture_output=True)
             text = readable_log.read_text(encoding="utf-8")
             self.assertIn("Harvester archival failure log", text)
             self.assertIn("Items requiring manual review: 0", text)
 
     def test_open_failure_log_reports_when_no_failures_exist(self) -> None:
-        with TemporaryDirectory() as temporary, patch.dict(
-            "os.environ", {"HARVESTER_STATE_ROOT": temporary}
-        ), self.assertRaises(ProtocolError) as raised:
-            handle_message({
-                "version": 1, "command": "open_failure_log",
-                "request_id": "abc", "payload": {},
-            })
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = save_archive(root, "Test", "https://www.instagram.com/me/saved/all-posts/")
+            with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": temporary}), self.assertRaises(ProtocolError) as raised:
+                handle_message({
+                    "version": 1, "command": "open_failure_log",
+                    "request_id": "abc", "payload": {"archive_id": archive["id"]},
+                })
         self.assertEqual(raised.exception.code, "output_unavailable")
 
     def test_diagnostics_are_bounded_and_never_store_request_payloads(self) -> None:
@@ -352,11 +360,11 @@ class NativeHostTests(unittest.TestCase):
 
     def test_archival_batch_rejects_unsafe_controls_before_configuration(self) -> None:
         invalid_payloads = (
-            {"count": 0, "min_delay": 10, "max_delay": 15},
-            {"count": 26, "min_delay": 10, "max_delay": 15},
-            {"count": 10, "min_delay": 9, "max_delay": 15},
-            {"count": 10, "min_delay": 20, "max_delay": 15},
-            {"count": 10, "min_delay": 10, "max_delay": 301},
+            {"archive_id": "x", "count": 0, "min_delay": 10, "max_delay": 15},
+            {"archive_id": "x", "count": 26, "min_delay": 10, "max_delay": 15},
+            {"archive_id": "x", "count": 10, "min_delay": 9, "max_delay": 15},
+            {"archive_id": "x", "count": 10, "min_delay": 20, "max_delay": 15},
+            {"archive_id": "x", "count": 10, "min_delay": 10, "max_delay": 301},
         )
         for payload in invalid_payloads:
             with self.subTest(payload=payload), self.assertRaises(ProtocolError) as raised:
@@ -370,7 +378,7 @@ class NativeHostTests(unittest.TestCase):
         expected = {"state": "complete", "scan": {"new_count": 1}, "summary": {"total": 2}}
         with patch("harvester.native_host._scan_saved", return_value=expected) as scan:
             response = handle_message(
-                {"version": 1, "command": "scan_saved_posts", "request_id": "abc", "payload": {}}
+                {"version": 1, "command": "scan_saved_posts", "request_id": "abc", "payload": {"archive_id": "legacy"}}
             )
         self.assertEqual(response["result"], expected)
         scan.assert_called_once()

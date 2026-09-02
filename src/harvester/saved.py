@@ -100,6 +100,56 @@ def sync_saved_incremental(
     return {"index": merged, "scan": scan}
 
 
+def sync_supplied_saved_items(
+    scanned_newest_first: list[dict[str, Any]],
+    index_path: Path,
+    known_streak_required: int = 5,
+) -> dict[str, Any]:
+    """Persist post links collected from one explicitly configured Saved page."""
+
+    clean: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in scanned_newest_first:
+        if not isinstance(item, dict):
+            raise SavedEnumerationError("Saved-page scan returned invalid items")
+        source_id = item.get("source_id")
+        source_url = item.get("source_url")
+        if (
+            not isinstance(source_id, str)
+            or not source_id
+            or source_id in seen
+            or not isinstance(source_url, str)
+        ):
+            continue
+        seen.add(source_id)
+        clean.append({
+            "source": "instagram",
+            "source_id": source_id,
+            "source_url": source_url,
+            "saved_position_newest_first": len(clean) + 1,
+            "audio": {"label": None, "title": None, "artist": None, "is_original": False},
+        })
+    if not clean:
+        raise SavedEnumerationError("No Instagram posts were found on that Saved page")
+    if index_path.is_file():
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+        merged, scan = merge_incremental_index(index, clean, known_streak_required)
+        _atomic_json(index_path, merged, prefix=".saved-index-")
+        return {"index": merged, "scan": scan}
+    index = _write_index(index_path, clean, complete=True)
+    scan = {
+        "boundary": "initial-page-scan",
+        "known_streak_required": known_streak_required,
+        "known_streak_reached": 0,
+        "scanned_count": len(clean),
+        "new_count": len(clean),
+    }
+    index["last_incremental_sync_at"] = datetime.now(timezone.utc).isoformat()
+    index["last_incremental_sync"] = scan
+    _atomic_json(index_path, index, prefix=".saved-index-")
+    return {"index": index, "scan": scan}
+
+
 def merge_incremental_index(
     index: dict[str, Any],
     scanned_newest_first: Iterable[dict[str, Any]],

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -40,7 +41,8 @@ def audit_archive(root: Path) -> dict[str, Any]:
                 _issue(issues, "error", bundle, "duplicate_identity", f"also present in {identities[identity].name}")
             else:
                 identities[identity] = bundle
-            if not bundle.name.endswith(f"_{source_id}"):
+            ordered_archival_name = re.fullmatch(r"\d{4,}__[a-z0-9]+(?:-[a-z0-9]+)*", bundle.name)
+            if not ordered_archival_name and not bundle.name.endswith(f"_{source_id}"):
                 _issue(issues, "warning", bundle, "id_not_in_folder", "folder does not end with stable source ID")
 
         file_records = metadata.get("files")

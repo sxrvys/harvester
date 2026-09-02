@@ -1,6 +1,6 @@
 # Archival Harvest acceptance
 
-Status: manually accepted. Packaging, signing, and distribution remain paused.
+Status: manually accepted through the V1.0.2 multi-archive workflow.
 
 ## Purpose
 
@@ -13,6 +13,7 @@ priority. It is not a general queue, feed downloader, or unattended scraper.
 
 The Firefox extension provides a separate **Archival Harvest** screen showing:
 
+- a user-managed list of Instagram Saved pages and collections;
 - indexed, waiting, complete, deferred, and retired counts;
 - the last successful Saved scan and its boundary;
 - **Scan saved posts**;
@@ -25,6 +26,10 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
 ## Scan contract
 
 - A scan begins only after **Scan saved posts** is clicked.
+- The selected archive supplies the exact Saved-page URL; multiple archives keep
+  separate queues and scan history.
+- A successful scan-created Instagram tab closes automatically. A failed scan
+  leaves it open for diagnosis.
 - It reads the authorized Firefox Instagram session without exporting cookies.
 - It scans Saved newest-first and stops after five consecutive ledgered post IDs.
 - Newly discovered posts are appended to the canonical oldest-first index and
@@ -46,6 +51,8 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
   challenge, or rate-limit signals stop the batch.
 - The active global audio preset applies to newly created bundles.
 - Results synchronize into the lifecycle ledger and remain inspectable locally.
+- Posts shared by multiple configured archives use one metadata-identified bundle;
+  every affected ledger is refreshed before and after a batch.
 - Completion reports separate downloaded and skipped counts rather than implying
   that every requested post produced media.
 - The latest completed-batch result is reconstructed from the durable native batch
@@ -67,6 +74,23 @@ The screen displays:
 - no packaging, signing, or distribution work.
 
 One-time scheduling may be considered only after the manual workflow is accepted.
+
+## V1.0.2 multi-archive acceptance
+
+Accepted in Firefox on 2026-09-02:
+
+- A clean first-run profile added, named, edited, renamed, selected, and reopened
+  an All Saved page and a separate named collection.
+- The All Saved page indexed 468 posts. The two-thumbnail collection resolved and
+  indexed both posts despite Instagram not exposing ordinary post anchors.
+- Selecting and scanning either archive affected only that archive, and successful
+  temporary scan tabs closed automatically.
+- A one-item batch processed a five-video carousel as one archival bundle containing
+  five originals, five playable video derivatives, and five audio derivatives.
+- The carousel exists in both configured archives but occupies one on-disk bundle;
+  both ledgers recognize the shared completion.
+- The resulting archive audit reported 7 bundles, 33 files, zero errors, and zero
+  warnings.
 
 ## Manual acceptance
 
