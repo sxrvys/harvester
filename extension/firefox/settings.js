@@ -9,6 +9,7 @@ const chooseOutput = document.querySelector("#choose-output");
 const save = document.querySelector("#save");
 const status = document.querySelector("#status");
 const diagnostics = document.querySelector("#diagnostics");
+const bugReport = document.querySelector("#bug-report");
 
 function requestId() {
   return crypto.randomUUID();
@@ -91,6 +92,10 @@ diagnostics.addEventListener("click", async () => {
   } finally {
     diagnostics.disabled = false;
   }
+});
+
+bugReport.addEventListener("click", () => {
+  browser.tabs.create({url: browser.runtime.getURL("report.html")});
 });
 
 initialize();

@@ -5,6 +5,8 @@ let harvestState = {state: "idle", message: "Local companion ready"};
 let archivalState = {state: "idle", message: "Archival Harvest ready"};
 let pickerTimeout = null;
 let pickerTabId = null;
+let lastFailureTabId = null;
+const MAX_FIREFOX_DIAGNOSTICS = 100;
 const stateReady = browser.storage.local.get("harvestState").then((stored) => {
   if (stored.harvestState && typeof stored.harvestState === "object") {
     if (stored.harvestState.state === "selecting") {
@@ -68,6 +70,38 @@ function sendNative(command, payload) {
   });
 }
 
+async function recordFirefoxFailure(operation, code, message, tabId = null) {
+  try {
+    const stored = await browser.storage.local.get("firefoxDiagnostics");
+    const events = Array.isArray(stored.firefoxDiagnostics) ? stored.firefoxDiagnostics : [];
+    events.push({
+      recorded_at: new Date().toISOString(),
+      operation: String(operation).slice(0, 80),
+      code: String(code).slice(0, 80),
+      message: String(message).replace(/[\r\n]+/g, " ").slice(0, 500),
+      application_version: browser.runtime.getManifest().version
+    });
+    lastFailureTabId = Number.isInteger(tabId) ? tabId : lastFailureTabId;
+    await browser.storage.local.set({firefoxDiagnostics: events.slice(-MAX_FIREFOX_DIAGNOSTICS)});
+  } catch (error) {
+    // Diagnostics are best-effort and must never interfere with the requested operation.
+  }
+}
+
+function sanitizedPageUrl(raw) {
+  try {
+    const value = new URL(raw);
+    if (!["http:", "https:"].includes(value.protocol)) return null;
+    value.username = "";
+    value.password = "";
+    value.search = "";
+    value.hash = "";
+    return value.toString();
+  } catch (error) {
+    return null;
+  }
+}
+
 async function runHarvest(url) {
   await setHarvestState({state: "running", message: "Harvesting… Keep Firefox open."});
   try {
@@ -79,12 +113,15 @@ async function runHarvest(url) {
         output_path: response.result && response.result.output_path
       });
     } else {
+      const failure = response && response.error || {};
+      await recordFirefoxFailure("harvest_url", failure.code || "harvest_failed", failure.message || "Harvest failed safely");
       await setHarvestState({
         state: "failed",
         message: response && response.error && response.error.message || "Harvest failed safely"
       });
     }
   } catch (error) {
+    await recordFirefoxFailure("harvest_url", "companion_unavailable", "Local companion became unavailable");
     await setHarvestState({state: "failed", message: "Local companion became unavailable"});
   }
 }
@@ -103,12 +140,15 @@ async function runMediaHarvest(mediaUrl, pageUrl) {
         output_path: response.result && response.result.output_path
       });
     } else {
+      const failure = response && response.error || {};
+      await recordFirefoxFailure("harvest_media_url", failure.code || "selected_media_failed", failure.message || "Selected media failed safely", lastFailureTabId);
       await setHarvestState({
         state: "failed",
         message: response && response.error && response.error.message || "Selected media failed safely"
       });
     }
   } catch (error) {
+    await recordFirefoxFailure("harvest_media_url", "companion_unavailable", "Local companion became unavailable", lastFailureTabId);
     await setHarvestState({state: "failed", message: "Local companion became unavailable"});
   }
 }
@@ -176,6 +216,29 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     return harvestState;
   }
   if (message.command === "get_archival_operation") return archivalState;
+  if (message.command === "get_bug_report_context") {
+    const stored = await browser.storage.local.get("firefoxDiagnostics");
+    let pageUrl = null;
+    if (Number.isInteger(lastFailureTabId)) {
+      try {
+        pageUrl = sanitizedPageUrl((await browser.tabs.get(lastFailureTabId)).url);
+      } catch (error) {
+        pageUrl = null;
+      }
+    }
+    let nativeEvents = [];
+    try {
+      const response = await sendNative("get_diagnostics", {});
+      if (response && response.ok && Array.isArray(response.result.events)) nativeEvents = response.result.events;
+    } catch (error) {
+      // A Firefox-side companion failure is already useful without native events.
+    }
+    return {
+      firefox: Array.isArray(stored.firefoxDiagnostics) ? stored.firefoxDiagnostics : [],
+      native: nativeEvents,
+      sanitized_page_url: pageUrl
+    };
+  }
   if (message.command === "get_archival_status") return sendNative("get_archival_status", {});
   if (message.command === "start_saved_scan") {
     if (anyOperationRunning()) return {accepted: false, state: archivalState};
@@ -214,6 +277,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
       return {accepted: false, state: harvestState};
     }
     if (!Number.isInteger(message.tab_id)) {
+      await recordFirefoxFailure("media_picker", "invalid_tab", "Media picker unavailable");
       return {accepted: false, state: {state: "failed", message: "Media picker unavailable"}};
     }
     try {
@@ -235,9 +299,11 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
           state: "failed",
           message: "No accessible media was selected"
         });
+        await recordFirefoxFailure("media_picker", "selection_timeout", "No accessible media was selected", message.tab_id);
       }, 60000);
       return {accepted: true};
     } catch (error) {
+      await recordFirefoxFailure("media_picker", "injection_blocked", "This page does not allow media selection", message.tab_id);
       await setHarvestState({state: "failed", message: "This page does not allow media selection"});
       return {accepted: false, state: harvestState};
     }
@@ -250,11 +316,16 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
       await browser.tabs.sendMessage(sender.tab.id, {command: "stop_picker"}).catch(() => undefined);
     }
     if (!message.media_url) {
+      await recordFirefoxFailure("media_picker", "missing_media_url", "Selected media has no ordinary URL", sender.tab && sender.tab.id);
       await setHarvestState({state: "failed", message: "Selected media has no ordinary URL"});
       return {accepted: false};
     }
     const pageUrl = sender.tab && sender.tab.url;
-    if (typeof pageUrl !== "string") return {accepted: false};
+    if (typeof pageUrl !== "string") {
+      await recordFirefoxFailure("media_picker", "missing_page_url", "Selected page has no ordinary URL", sender.tab && sender.tab.id);
+      return {accepted: false};
+    }
+    lastFailureTabId = sender.tab && sender.tab.id;
     void runMediaHarvest(message.media_url, pageUrl);
     return {accepted: true};
   }

@@ -17,11 +17,16 @@ from .model import HarvestItem
 class Archive:
     """Deterministic filesystem archive for harvester items."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, directory_name: str | None = None) -> None:
         self.root = root
+        if directory_name is not None and (
+            not directory_name or Path(directory_name).name != directory_name
+        ):
+            raise ValueError("archive directory name must be one safe path component")
+        self.directory_name = directory_name
 
     def item_directory(self, item: HarvestItem) -> Path:
-        preferred = self.root / item.directory_name
+        preferred = self.root / (self.directory_name or item.directory_name)
         if preferred.exists():
             return preferred
         legacy = self.root / item.key
@@ -30,6 +35,8 @@ class Archive:
         return preferred
 
     def asset_stem(self, item: HarvestItem) -> str:
+        if self.directory_name:
+            return self.directory_name
         suffix = f"_{item.source_id}"
         directory_name = item.directory_name
         return directory_name[:-len(suffix)] if directory_name.endswith(suffix) else directory_name

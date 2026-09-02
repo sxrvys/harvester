@@ -13,7 +13,7 @@ from .archive import Archive
 from .audio import DEFAULT_AUDIO_PRESET, extract_audio, get_audio_preset
 from .media import has_audio, probe
 from .model import HarvestItem
-from .naming import propose_name
+from .naming import archival_bundle_name, propose_name
 
 
 POST_URL = re.compile(r"^https://(?:www\.)?instagram\.com/(?:p|reel|reels)/([A-Za-z0-9_-]+)/?(?:\?.*)?$")
@@ -33,6 +33,7 @@ def harvest_instagram_url(
     archive_root: Path,
     platform_audio: dict[str, Any] | None = None,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
+    archival_order: int | None = None,
 ) -> Path:
     """Acquire exactly one supplied Instagram URL through one explicit Firefox profile."""
 
@@ -97,7 +98,8 @@ def harvest_instagram_url(
                 "audio": _preferred_audio_metadata(platform_audio, info),
             },
         )
-        return _build_bundle(item, media_files, archive_root, audio_preset)
+        directory_name = archival_bundle_name(archival_order, title, creator) if archival_order else None
+        return _build_bundle(item, media_files, archive_root, audio_preset, directory_name)
 
 
 def _read_info(paths: list[Path]) -> dict[str, Any]:
@@ -150,9 +152,10 @@ def _build_bundle(
     media_files: list[Path],
     archive_root: Path,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
+    directory_name: str | None = None,
 ) -> Path:
     preset = get_audio_preset(audio_preset)
-    archive = Archive(archive_root)
+    archive = Archive(archive_root, directory_name)
     records: list[dict[str, Any]] = []
     inspected: list[tuple[Path, dict[str, Any], str]] = []
     for index, source in enumerate(media_files, start=1):

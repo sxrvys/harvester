@@ -273,10 +273,62 @@ depending on this repository. The existing 462-item Saved index and ledger were
 migrated byte-for-byte, and a framed live status request returned version 1.0.0,
 configured and ready. The native manifest permits only the stable extension ID.
 
-Remaining release work: reload and smoke-test the temporary extension under its
-new identity, submit it to Mozilla for unlisted signing with owner-controlled AMO
-credentials, install the signed XPI, and repeat the short smoke test. Do not put
-AMO credentials in the repository, settings, logs, or chat.
+Mozilla approved the unlisted 1.0.0 submission. The owner removed only the
+temporary debugging instance, installed the signed XPI permanently, and confirmed
+the native companion, Settings, and plain-text diagnostics. Signed-V1 smoke tests
+then passed for a one-off Instagram Reel, MDN visible-media selection, an
+oldest-first archival batch (10 complete, zero skipped), and an idempotent local
+file harvest. The release still needs final GitHub documentation, license and
+repository-visibility decisions, and publication of the signed XPI plus companion
+package.
+
+## V1.0.1 roadmap
+
+- Add privacy-bounded Firefox-side failure logging for picker injection,
+  selection timeout, missing ordinary media URL, native-message dispatch, and
+  other failures that occur before the companion can record them. Automatic
+  diagnostics must not retain page URLs or media URLs.
+- Add a user-initiated **Prepare bug report** workflow that previews everything
+  being copied. It may optionally include a sanitized page URL only with explicit
+  consent. Sanitization uses the URL parser, permits only HTTP(S), and removes
+  credentials, query parameters, and fragments. Never include the selected media
+  URL, cookies, headers, browser history, filesystem paths, or raw downloader
+  output. Offer **Copy report** for everyone and **Open GitHub issue** for users
+  with a GitHub account; state plainly that GitHub requires an account and never
+  submit automatically. Do not publish or embed a support email yet. The owner
+  may later designate a shared project address for Harvester and future creative
+  software projects.
+- Add a recent-batch review section to **Archival Harvest**. After a batch, show
+  only that batch's attempted items with a useful title/thumbnail, outcome, and
+  an **Open** action. Permit deliberate deletion of an individual completed
+  bundle through the existing ledger-aware retirement workflow; require clear
+  confirmation and never provide bulk deletion. The view is a batch receipt, not
+  a general media-library browser.
+- Improve new archival bundle directory names for Finder legibility using
+  `<zero-padded archival order>__<short human-readable title>`, for example
+  `0044__palestinians-displaced-1967`. The normalized title has a predictable
+  maximum length. Do not include the Instagram shortcode in the directory or
+  derivative filenames; provenance and attribution already retain it in
+  `metadata.json`, the ledger, and batch receipts. Archival order supplies stable
+  sorting and uniqueness. Idempotent lookup must use ledger/source identity rather
+  than reconstructing a path from its display name. Do not silently rename
+  existing bundle directories: any migration must update ledger and batch
+  references transactionally, or existing archives remain under their original
+  names.
+
+V1.0.1 implementation and live acceptance completed on 2026-09-02. The existing
+42 ledger-backed archival folders were transactionally migrated; a repeated dry
+run reports zero changes and every ledger/batch reference resolves. New archival
+batches natively use the compact ordered convention. The latest-batch viewer
+returned ten bounded local thumbnails and the owner confirmed Rename, Reveal in
+Finder, and confirmed Move to Trash; the deleted bundle appeared in macOS Trash
+and its ledger state changed to `retired-deleted`. Firefox-side protected-page
+injection failure produced a privacy-safe local event. The owner confirmed report
+preview, opt-in sanitized page address, plain-text copy, and a correctly prefilled
+GitHub issue without submission. The suite passes 93 tests and Mozilla lint reports
+zero errors, notices, or warnings. Remaining work is final artifact rebuild,
+Mozilla 1.0.1 signing, signed-XPI smoke test, license/repository visibility choice,
+and GitHub release publication.
 
 ## Working preferences
 

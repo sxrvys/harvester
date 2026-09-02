@@ -13,6 +13,84 @@ const failureLog = document.querySelector("#failure-log");
 const count = document.querySelector("#count");
 const minDelay = document.querySelector("#min-delay");
 const maxDelay = document.querySelector("#max-delay");
+const recentBatch = document.querySelector("#recent-batch");
+let loadedBatchPath = null;
+
+function native(command, payload = {}) {
+  return browser.runtime.sendNativeMessage("com.harvester.native", {
+    version: 1, command, request_id: crypto.randomUUID(), payload
+  });
+}
+
+async function loadRecentBatch() {
+  const response = await native("get_latest_batch_review");
+  if (!response || !response.ok) return;
+  recentBatch.textContent = "";
+  const items = response.result && response.result.items || [];
+  if (!items.length) {
+    recentBatch.append(Object.assign(document.createElement("p"), {textContent: "No archival batch has been recorded yet."}));
+    return;
+  }
+  items.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "batch-item";
+    const preview = item.thumbnail ? document.createElement("img") : document.createElement("div");
+    if (item.thumbnail) {
+      preview.src = item.thumbnail;
+      preview.alt = "";
+    } else {
+      preview.className = "thumbnail-placeholder";
+    }
+    const detail = document.createElement("div");
+    const heading = document.createElement("h3");
+    heading.textContent = item.title || item.bundle || "Instagram post";
+    const outcome = document.createElement("p");
+    outcome.textContent = item.lifecycle_status === "retired-deleted" ? "Moved to Trash" :
+      item.batch_status === "complete" ? "Downloaded" : "Skipped";
+    detail.append(heading, outcome);
+    if (item.duration_seconds !== null) {
+      const duration = document.createElement("p");
+      duration.className = "muted";
+      duration.textContent = `${Math.round(item.duration_seconds)} seconds`;
+      detail.append(duration);
+    }
+    const actions = document.createElement("div");
+    actions.className = "batch-actions";
+    const reveal = Object.assign(document.createElement("button"), {type: "button", textContent: "Reveal in Finder"});
+    const rename = Object.assign(document.createElement("button"), {type: "button", textContent: "Rename"});
+    const remove = Object.assign(document.createElement("button"), {type: "button", textContent: "Move to Trash"});
+    remove.className = "danger";
+    const present = Boolean(item.archive_present);
+    reveal.disabled = !present;
+    rename.disabled = !present;
+    remove.disabled = !present;
+    reveal.addEventListener("click", async () => {
+      const result = await native("reveal_archival_item", {source_id: item.source_id});
+      status.textContent = result && result.ok ? "Archived item revealed" : "Archived item unavailable";
+    });
+    rename.addEventListener("click", async () => {
+      const requested = prompt("Choose a short title. The archival-order number stays unchanged.", heading.textContent);
+      if (requested === null) return;
+      rename.disabled = true;
+      const result = await native("rename_archival_item", {source_id: item.source_id, title: requested});
+      status.textContent = result && result.ok ? "Archived item renamed" :
+        result && result.error && result.error.message || "Archived item was not renamed";
+      await loadRecentBatch();
+    });
+    remove.addEventListener("click", async () => {
+      if (!confirm(`Move “${heading.textContent}” to Trash and retire it from the archive queue?`)) return;
+      remove.disabled = true;
+      const result = await native("delete_archival_item", {source_id: item.source_id});
+      status.textContent = result && result.ok ? "Archived item moved to Trash" :
+        result && result.error && result.error.message || "Archived item was not deleted";
+      await refresh();
+      await loadRecentBatch();
+    });
+    actions.append(reveal, rename, remove);
+    card.append(preview, detail, actions);
+    recentBatch.append(card);
+  });
+}
 
 function renderStatus(result) {
   const summary = result.summary || {};
@@ -56,6 +134,10 @@ async function refresh() {
       browser.runtime.sendMessage({command: "get_archival_operation"})
     ]);
     const progress = response && response.ok ? renderStatus(response.result) : null;
+    if (progress && progress.batch_path !== loadedBatchPath && progress.running === 0 && progress.pending === 0) {
+      loadedBatchPath = progress.batch_path;
+      void loadRecentBatch();
+    }
     status.textContent = operation.state === "running" && progress
       ? `${operation.message} ${progress.complete + progress.failed}/${progress.count} finished.`
       : operationMessage(operation, progress);
@@ -110,3 +192,4 @@ failureLog.addEventListener("click", async () => {
 
 setInterval(refresh, 1000);
 refresh();
+loadRecentBatch().catch(() => { recentBatch.textContent = "Recent batch unavailable"; });

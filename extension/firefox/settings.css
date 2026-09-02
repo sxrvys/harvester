@@ -13,6 +13,7 @@ h1 { font-size: 24px; }
 form { display: grid; gap: 10px; margin-top: 28px; }
 label { font-weight: 650; margin-top: 8px; }
 input, select { font: inherit; padding: 9px; }
+textarea { box-sizing: border-box; font: 13px ui-monospace, monospace; margin: 12px 0; padding: 10px; resize: vertical; width: 100%; }
 button { font: inherit; margin-top: 12px; padding: 9px 14px; width: max-content; }
 .path-row { align-items: center; display: grid; gap: 10px; grid-template-columns: 1fr auto; }
 .path-row button { margin-top: 0; }

@@ -11,6 +11,18 @@ from .model import slugify, title_from_caption
 
 
 EXCLUDED_PREFIXES = ("#", "@", "follow ", "courtesy ", "available ", "http", "📍", "📞", "📅", "💬")
+ARCHIVAL_TITLE_LIMIT = 44
+
+
+def archival_bundle_name(order: int, title: str | None, creator: str | None = None) -> str:
+    if order < 1:
+        raise ValueError("archival order must be positive")
+    descriptive = "-".join(part for part in (slugify(title), slugify(creator)) if part)
+    descriptive = descriptive or "instagram-post"
+    if len(descriptive) > ARCHIVAL_TITLE_LIMIT:
+        shortened = descriptive[:ARCHIVAL_TITLE_LIMIT].rstrip("-")
+        descriptive = shortened.rsplit("-", 1)[0] if "-" in shortened else shortened
+    return f"{order:04d}__{descriptive}"
 
 
 def preview_names(root: Path) -> dict[str, Any]:

@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Rename existing ledger-backed archival bundles to compact Finder names."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import tempfile
+from pathlib import Path
+
+
+TITLE_LIMIT = 44
+
+
+def compact_title(directory_name: str, source_id: str) -> str:
+    directory_name = re.sub(r"^\d{4}__", "", directory_name)
+    directory_name = re.sub(r"^\d{4}-", "", directory_name)
+    suffix = f"_{source_id}"
+    title = directory_name[: -len(suffix)] if directory_name.endswith(suffix) else directory_name
+    title = re.sub(r"[^a-z0-9]+", "-", title.casefold()).strip("-")
+    if not title:
+        title = "instagram-post"
+    if len(title) <= TITLE_LIMIT:
+        return title
+    shortened = title[:TITLE_LIMIT].rstrip("-")
+    if "-" in shortened:
+        shortened = shortened.rsplit("-", 1)[0]
+    return shortened or title[:TITLE_LIMIT].rstrip("-")
+
+
+def atomic_json_write(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def replace_paths(value: object, replacements: dict[str, str]) -> object:
+    if isinstance(value, dict):
+        return {key: replace_paths(item, replacements) for key, item in value.items()}
+    if isinstance(value, list):
+        return [replace_paths(item, replacements) for item in value]
+    if isinstance(value, str):
+        return replacements.get(value, value)
+    return value
+
+
+def repair_batch_references(
+    value: object, ledger_items: dict[str, object], replacements: dict[str, str]
+) -> object:
+    if not isinstance(value, dict) or not isinstance(value.get("items"), list):
+        return value
+    for item in value["items"]:
+        if not isinstance(item, dict) or item.get("source") != "instagram":
+            continue
+        ledger_item = ledger_items.get(f"instagram:{item.get('source_id')}")
+        if not isinstance(ledger_item, dict) or not ledger_item.get("archive_directory"):
+            continue
+        current = item.get("archive_directory")
+        canonical = replacements.get(
+            str(ledger_item["archive_directory"]), str(ledger_item["archive_directory"])
+        )
+        if isinstance(current, str) and not Path(current).is_absolute():
+            item["archive_directory"] = str(Path(current).parent / Path(canonical).name)
+        else:
+            item["archive_directory"] = canonical
+    return value
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--apply", action="store_true", help="perform the validated migration")
+    parser.add_argument(
+        "--state-root",
+        type=Path,
+        default=Path.home() / "Library/Application Support/harvester/state",
+    )
+    parser.add_argument("--repo-state", type=Path, default=Path("state"))
+    args = parser.parse_args()
+
+    ledger_path = args.state_root / "item-ledger.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    mapping: dict[Path, Path] = {}
+    for item in ledger.get("items", {}).values():
+        old_text = item.get("archive_directory")
+        order = item.get("saved_order_oldest_first")
+        source_id = item.get("source_id")
+        if not old_text or not isinstance(order, int) or not isinstance(source_id, str):
+            continue
+        old = Path(old_text)
+        new = old.with_name(f"{order:04d}__{compact_title(old.name, source_id)}")
+        if old != new:
+            mapping[old] = new
+
+    if len(set(mapping.values())) != len(mapping):
+        raise SystemExit("Refusing migration: generated directory names collide")
+    missing = [path for path in mapping if not path.is_dir()]
+    occupied = [path for path in mapping.values() if path.exists() and path not in mapping]
+    if missing or occupied:
+        for path in missing:
+            print(f"MISSING | {path}", file=sys.stderr)
+        for path in occupied:
+            print(f"OCCUPIED | {path}", file=sys.stderr)
+        raise SystemExit("Refusing migration: archive validation failed")
+
+    replacements = {str(old): str(new) for old, new in mapping.items()}
+    json_paths = [ledger_path]
+    json_paths.extend(sorted((args.state_root / "batches").glob("*.json")))
+    if args.repo_state.is_dir():
+        json_paths.extend(sorted(args.repo_state.rglob("*.json")))
+    json_paths = list(dict.fromkeys(path.resolve() for path in json_paths))
+    changed_json: dict[Path, tuple[object, object]] = {}
+    for path in json_paths:
+        try:
+            original = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        changed = replace_paths(original, replacements)
+        changed = repair_batch_references(changed, ledger.get("items", {}), replacements)
+        if changed != original:
+            changed_json[path] = (original, changed)
+
+    for old, new in sorted(mapping.items(), key=lambda pair: pair[1].name):
+        print(f"{old.name} -> {new.name}")
+    print(f"\n{len(mapping)} archival directories; {len(changed_json)} state files")
+    if not args.apply:
+        print("Dry run only; pass --apply after reviewing this mapping.")
+        return 0
+
+    renamed: list[tuple[Path, Path]] = []
+    written: list[Path] = []
+    try:
+        for old, new in mapping.items():
+            old.rename(new)
+            renamed.append((old, new))
+        for path, (_, changed) in changed_json.items():
+            atomic_json_write(path, changed)
+            written.append(path)
+    except Exception:
+        for path in reversed(written):
+            atomic_json_write(path, changed_json[path][0])
+        for old, new in reversed(renamed):
+            if new.exists() and not old.exists():
+                new.rename(old)
+        raise
+
+    print("Migration complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prepare Harvester bug report</title>
+    <link rel="stylesheet" href="settings.css">
+  </head>
+  <body>
+    <main>
+      <header><img src="icons/glyph-dark.svg" alt=""><h1>Prepare bug report</h1></header>
+      <p>Harvester never sends reports automatically. Review the information below and control what is shared.</p>
+      <label class="report-option"><input id="include-url" type="checkbox"> Include sanitized page address</label>
+      <p id="url-note" class="muted">Query parameters, fragments, and credentials are removed. The selected media URL is never included.</p>
+      <textarea id="report" rows="20" readonly aria-label="Bug report preview">Preparing report…</textarea>
+      <div class="path-row">
+        <button id="copy" type="button">Copy report</button>
+        <button id="github" type="button">Open GitHub issue</button>
+      </div>
+      <p>A GitHub account is required to submit an issue. You can copy the report and send it another way instead.</p>
+      <p id="status" role="status"></p>
+    </main>
+    <script src="report.js"></script>
+  </body>
+</html>

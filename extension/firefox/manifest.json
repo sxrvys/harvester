@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "harvester",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Send explicitly selected media to the local harvester companion.",
   "permissions": ["activeTab", "nativeMessaging", "storage"],
   "background": {

@@ -37,7 +37,7 @@ class BatchTests(unittest.TestCase):
                 "instagram:deferred": {"status": "deferred"},
                 "instagram:deleted": {"status": "retired-deleted"},
                 "instagram:new-1": {"status": "discovered"},
-                "instagram:new-2": {"status": "discovered"},
+                "instagram:new-2": {"status": "discovered", "saved_order_oldest_first": 52},
             }
         }
         with tempfile.TemporaryDirectory() as temporary:
@@ -45,3 +45,4 @@ class BatchTests(unittest.TestCase):
             ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
             selected = _select_oldest_unprocessed(index, ledger_path, 2)
         self.assertEqual([item["source_id"] for item in selected], ["new-1", "new-2"])
+        self.assertEqual(selected[1]["saved_order_oldest_first"], 52)

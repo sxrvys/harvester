@@ -1,19 +1,81 @@
-# harvester
+# Harvester
 
-harvester is a local-first tool for turning media the user intentionally saved
+Harvester is a local-first creative tool for turning media the user intentionally saved
 online into durable, predictable creative-media bundles.
+
+It is for artists, musicians, editors, researchers, and curious people who encounter
+unusual source material they may want to sample, study, edit, or use in VJ work later.
+Harvester preserves the selected original, prepares a useful audio derivative, and
+records provenance in ordinary files under the user's control.
+
+Harvester is not a general scraper, feed crawler, surveillance tool, playlist
+downloader, media-library service, or batch converter. It never scans unrelated
+links or captures network traffic.
 
 Its privacy, ownership, and
 least-privilege commitments are defined in
 [`PROJECT_CONSTITUTION.md`](PROJECT_CONSTITUTION.md). Current and intended
 licensing status is recorded in [`LICENSING.md`](LICENSING.md).
 
-The current Firefox prototype turns one explicitly selected Instagram, YouTube,
+The Firefox extension turns one explicitly selected Instagram, YouTube,
 or Reddit post—or one visible media element or local file—into a local bundle
 containing preserved originals, useful derivatives, and provenance metadata.
 Instagram also has a separate, ledger-backed archival workflow for the user's
 Saved collection. The project does not access a browser session or account unless
 the user explicitly initiates an operation that requires it.
+
+## Install on macOS
+
+Harvester has two required parts: the Mozilla-signed Firefox extension and a local
+macOS companion that performs downloading and media processing.
+
+1. Install [Homebrew](https://brew.sh/) if it is not already installed.
+2. In Terminal, install the media prerequisites:
+
+   ```sh
+   brew install python ffmpeg yt-dlp deno
+   ```
+
+3. Download and extract `harvester-macos-companion-1.0.1.tar.gz` from the GitHub
+   release. In Terminal, enter its extracted folder and run:
+
+   ```sh
+   scripts/install-macos-companion
+   ```
+
+4. Download the Mozilla-signed `.xpi` from the same release.
+5. In Firefox, open `about:addons`, choose the gear menu, select
+   **Install Add-on From File…**, and choose the `.xpi`.
+6. Open Harvester. **Local companion ready** confirms the two parts can communicate.
+
+Harvester V1.0.1 supports Firefox desktop 142 or newer on macOS.
+
+## Getting started
+
+- Open a single Instagram post or Reel, YouTube watch page, or Reddit post and
+  click **Harvest this**.
+- On another site, click **Select visible media**, point at one visible video or
+  audio element, and confirm **Harvest media**.
+- Use **Harvest local file** to preserve and prepare one file selected through Finder.
+- Open **Archival Harvest** to scan your own Instagram Saved collection and run a
+  paced oldest-first batch. Review, reveal, rename, or move a recent item to Trash.
+- Use **Settings** to choose the output folder and one global audio format.
+
+Keep Firefox open while a harvest or archival batch is running. Only acquire and
+use media you are legally permitted to preserve.
+
+## Privacy and bug reports
+
+Harvester has no account, cloud service, analytics, telemetry, advertising, or
+automatic bug submission. Settings and archival state stay on the Mac. Firefox
+authentication remains Firefox-owned.
+
+**Settings → Prepare bug report** previews safe technical details. A page address
+is excluded by default and can be added explicitly in sanitized form. Credentials,
+query parameters, fragments, selected media URLs, cookies, headers, filesystem
+paths, and raw downloader output are never included. The user can copy the report
+or open a prefilled GitHub issue and must submit it personally. A GitHub account is
+required to create an issue.
 
 ## Current status
 
@@ -27,8 +89,9 @@ the user explicitly initiates an operation that requires it.
   explicitly initiated, paced, oldest-first batches against its private ledger.
 - Settings can choose an output folder through Finder and automatically detect
   Firefox's declared default profile, with manual profile editing kept advanced.
-- All 86 automated tests pass. Packaging, signing, and distribution remain paused
-  until core functionality receives final review and explicit approval.
+- V1.0.1 passes 93 automated tests and Mozilla extension validation with zero
+  errors, warnings, or notices. Its recent-batch and privacy-safe bug-report
+  workflows passed live Firefox acceptance.
 - No code from RADIO HARVEST is used or required.
 
 See [`docs/v0-technical-plan.md`](docs/v0-technical-plan.md) and
@@ -172,12 +235,13 @@ Media asset filenames omit the Instagram ID and use the readable bundle stem:
 original/<readable-stem>__original.mp4
 ```
 
-The bundle folder, metadata, Saved index, and `state/item-ledger.json` retain the
-stable identity. File presence and filenames are never used to decide whether an
-item is eligible for reacquisition.
+Metadata, the Saved index, and `state/item-ledger.json` retain the stable identity.
+File presence and filenames are never used to decide whether an item is eligible
+for reacquisition.
 
-Approved naming migrations keep Instagram IDs on bundle folders while giving
-all retained media assets clean, readable role-based names.
+Archival bundle folders use compact, naturally sorted names such as
+`0044__palestinians-displaced-1967`. Instagram identity remains in metadata and
+the private ledger instead of cluttering the Finder name.
 
 ## Recoverable deletion
 
@@ -190,8 +254,8 @@ harvester archive-delete SOURCE_ID --trash-root /path/to/trash
 ```
 
 The operation refuses missing bundles, identity mismatches, paths outside the
-archive root, and existing Trash destinations. This command is the backend
-contract intended for a later front-end Delete control.
+archive root, and existing Trash destinations. Archival Harvest exposes it as a
+confirmed, one-item-at-a-time **Move to Trash** action for the latest batch.
 
 Live acquisition requires an exact URL, an exact Firefox profile path, and the
 user's explicit authorization for that run. It is intentionally not configured

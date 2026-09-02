@@ -8,10 +8,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from harvester.naming import apply_asset_migration, preview_asset_migration, propose_name
+from harvester.naming import archival_bundle_name, apply_asset_migration, preview_asset_migration, propose_name
 
 
 class NamingTests(unittest.TestCase):
+    def test_archival_bundle_name_is_compact_ordered_and_identifier_free(self) -> None:
+        name = archival_bundle_name(44, "In 1967, approximately 250,000 Palestinians were displaced across")
+        self.assertTrue(name.startswith("0044__in-1967"))
+        self.assertLessEqual(len(name.split("__", 1)[1]), 44)
+        self.assertNotIn("DbXUMBcsAEP", name)
+
     def test_preserves_short_title_creator_pattern(self) -> None:
         proposed, title, creator, rule = propose_name({
             "source_id": "ABC",

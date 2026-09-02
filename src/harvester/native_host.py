@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import configparser
+import re
 import struct
 import subprocess
 import sys
@@ -246,6 +247,78 @@ def _archival_status(settings_path: Path) -> dict[str, object]:
         "last_scan": scan,
         "latest_batch": batch_progress,
     }
+
+
+def _latest_batch_review(request_id: str, settings_path: Path) -> dict[str, object]:
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id)
+    paths = _archival_paths()
+    batches = sorted(paths["batches"].glob("*-oldest-*.json")) if paths["batches"].is_dir() else []
+    if not batches:
+        return {"summary": {"items": 0, "present": 0, "deleted": 0, "failed": 0}, "items": []}
+    from .review import build_batch_review
+    review = build_batch_review(batches[-1], archive_root, paths["ledger"])
+    review.pop("batch", None)
+    for item in review["items"]:
+        item.pop("source_url", None)
+    return review
+
+
+def _archival_bundle(source_id: str, request_id: str, settings_path: Path) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", source_id):
+        raise ProtocolError("invalid_request", "Invalid archival item", request_id)
+    paths = _archival_paths()
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id).resolve()
+    try:
+        ledger = json.loads(paths["ledger"].read_text(encoding="utf-8"))
+        record = ledger["items"][f"instagram:{source_id}"]
+        bundle = Path(record["archive_directory"]).resolve()
+        metadata = json.loads((bundle / "metadata.json").read_text(encoding="utf-8"))["item"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError):
+        raise ProtocolError("archive_unavailable", "Archived item is unavailable", request_id) from None
+    if bundle.parent != archive_root or (metadata.get("source"), metadata.get("source_id")) != ("instagram", source_id):
+        raise ProtocolError("archive_unavailable", "Archived item could not be verified", request_id)
+    return bundle
+
+
+def _reveal_archival_item(source_id: str, request_id: str, settings_path: Path) -> dict[str, object]:
+    bundle = _archival_bundle(source_id, request_id, settings_path)
+    try:
+        subprocess.run(["open", "-R", str(bundle)], check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError):
+        raise ProtocolError("output_unavailable", "Archived item could not be revealed", request_id) from None
+    return {"state": "revealed"}
+
+
+def _delete_archival_item(source_id: str, request_id: str, settings_path: Path) -> dict[str, object]:
+    _archival_bundle(source_id, request_id, settings_path)
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id)
+    paths = _archival_paths()
+    from .deletion import ArchiveDeletionError, delete_archive_item
+    try:
+        result = delete_archive_item(paths["ledger"], archive_root, Path.home() / ".Trash", source_id)
+    except ArchiveDeletionError:
+        raise ProtocolError("deletion_failed", "Archived item could not be moved to Trash", request_id) from None
+    return {"state": "deleted", "source_id": result["source_id"]}
+
+
+def _rename_archival_item(source_id: str, title: str, request_id: str, settings_path: Path) -> dict[str, object]:
+    _archival_bundle(source_id, request_id, settings_path)
+    settings = _read_settings(settings_path)
+    archive_root = _configured_path(settings, "archive_root", request_id)
+    paths = _archival_paths()
+    from .deletion import ArchiveDeletionError, rename_archive_item
+    try:
+        result = rename_archive_item(
+            paths["ledger"], paths["index"], paths["batches"], archive_root, source_id, title
+        )
+    except ArchiveDeletionError as error:
+        raise ProtocolError("rename_failed", str(error), request_id) from None
+    except Exception:
+        raise ProtocolError("rename_failed", "Archived item could not be renamed safely", request_id) from None
+    return {"state": "renamed", "source_id": result["source_id"], "title": result["title"]}
 
 
 def _scan_saved(request_id: str, settings_path: Path) -> dict[str, object]:
@@ -539,6 +612,27 @@ def _open_diagnostics(request_id: str) -> dict[str, object]:
     return {"state": "opened"}
 
 
+def _get_diagnostics() -> dict[str, object]:
+    """Return only the already-sanitized diagnostic fields for user review."""
+    structured_log = _archival_paths()["root"] / "diagnostics.json"
+    if not structured_log.is_file():
+        return {"events": []}
+    try:
+        payload = json.loads(structured_log.read_text(encoding="utf-8"))
+        events = payload.get("events") if isinstance(payload, dict) else []
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {"events": []}
+    safe: list[dict[str, str]] = []
+    for event in events if isinstance(events, list) else []:
+        if not isinstance(event, dict):
+            continue
+        safe.append({
+            key: " ".join(str(event.get(key) or "Unavailable").splitlines())[:500]
+            for key in ("recorded_at", "operation", "code", "message", "application_version")
+        })
+    return {"events": safe[-MAX_DIAGNOSTIC_EVENTS:]}
+
+
 def _choose_output_folder(request_id: str) -> dict[str, object]:
     script = 'POSIX path of (choose folder with prompt "Choose Harvester output folder")'
     try:
@@ -674,6 +768,23 @@ def handle_message(
             "ok": True,
             "result": _archival_status(settings_path or _settings_path()),
         }
+    if command == "get_latest_batch_review":
+        if payload:
+            raise ProtocolError("invalid_request", "get_latest_batch_review payload must be empty", request_id)
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True,
+                "result": _latest_batch_review(request_id, settings_path or _settings_path())}
+    if command in {"reveal_archival_item", "delete_archival_item"}:
+        if set(payload) != {"source_id"} or not isinstance(payload.get("source_id"), str):
+            raise ProtocolError("invalid_request", "One archival source ID is required", request_id)
+        result = (_reveal_archival_item if command == "reveal_archival_item" else _delete_archival_item)(
+            payload["source_id"], request_id, settings_path or _settings_path()
+        )
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
+    if command == "rename_archival_item":
+        if set(payload) != {"source_id", "title"} or not all(isinstance(payload.get(key), str) for key in ("source_id", "title")):
+            raise ProtocolError("invalid_request", "One archival source ID and title are required", request_id)
+        result = _rename_archival_item(payload["source_id"], payload["title"], request_id, settings_path or _settings_path())
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
     if command == "scan_saved_posts":
         if payload:
             raise ProtocolError("invalid_request", "scan_saved_posts payload must be empty", request_id)
@@ -728,6 +839,15 @@ def handle_message(
             "request_id": request_id,
             "ok": True,
             "result": _open_diagnostics(request_id),
+        }
+    if command == "get_diagnostics":
+        if payload:
+            raise ProtocolError("invalid_request", "get_diagnostics payload must be empty", request_id)
+        return {
+            "version": PROTOCOL_VERSION,
+            "request_id": request_id,
+            "ok": True,
+            "result": _get_diagnostics(),
         }
     if command == "harvest_media_url":
         result = _harvest_media_url(payload, request_id, settings_path or _settings_path())

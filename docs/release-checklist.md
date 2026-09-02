@@ -5,7 +5,7 @@ The extension alone cannot acquire or process local media.
 
 ## Release boundary
 
-- Firefox desktop 109 or newer.
+- Firefox desktop 142 or newer.
 - macOS companion installation.
 - Python 3.11 or newer.
 - FFmpeg/FFprobe, yt-dlp, and Deno available on the companion `PATH`.
@@ -30,7 +30,10 @@ The extension alone cannot acquire or process local media.
 9. Smoke-test status, settings, one supported URL, visible-media selection,
    local-file selection, output-folder opening, archival status, and failure-log
    opening from the permanent installation. Trigger one safe failure and confirm
-   Settings opens its sanitized plain-text diagnostic record.
+   Settings opens its sanitized plain-text diagnostic record. Verify the latest
+   batch viewer, thumbnails, Reveal in Finder, safe rename, confirmed Trash move,
+   report preview, opt-in sanitized URL, clipboard copy, and prefilled GitHub issue
+   without submitting the test issue.
 
 ## Signing boundary
 

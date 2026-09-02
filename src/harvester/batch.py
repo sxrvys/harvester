@@ -73,7 +73,8 @@ def harvest_oldest(
         _atomic_write(batch_path, batch)
         try:
             destination = harvest_instagram_url(
-                record["source_url"], firefox_profile, archive_root, record.get("audio"), audio_preset
+                record["source_url"], firefox_profile, archive_root, record.get("audio"),
+                audio_preset, record.get("saved_order_oldest_first"),
             )
         except AcquisitionError as error:
             record["status"] = "failed"
@@ -111,11 +112,14 @@ def _select_oldest_unprocessed(
         return index["items"][:count]
     ledger = json.loads(item_ledger_path.read_text(encoding="utf-8"))
     selected: list[dict[str, Any]] = []
-    for item in index["items"]:
+    for position, item in enumerate(index["items"], start=1):
         record = ledger.get("items", {}).get(identity_key(item["source"], item["source_id"]), {})
         if record.get("status") in TERMINAL_STATUSES:
             continue
-        selected.append(item)
+        selected.append({
+            **item,
+            "saved_order_oldest_first": record.get("saved_order_oldest_first", position),
+        })
         if len(selected) == count:
             break
     return selected

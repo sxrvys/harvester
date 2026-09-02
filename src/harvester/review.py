@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import base64
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -40,11 +42,13 @@ def build_batch_review(
             "lifecycle_status": ledger_record.get("status"),
             "archive_present": bundle is not None,
             "bundle": bundle.name if bundle else None,
+            "title": item_metadata.get("archive_display_title") or item_metadata.get("title") or proposed or source_id,
             "proposed_bundle": proposed,
             "media": _media_summary(file_records),
             "duration_seconds": _duration(file_records),
             "audio_attribution": audio,
             "caption_excerpt": _excerpt(item_metadata.get("caption")),
+            "thumbnail": _thumbnail(bundle, file_records),
         })
     return {
         "schema_version": 1,
@@ -133,3 +137,25 @@ def _excerpt(caption: Any, limit: int = 180) -> str | None:
     if not clean:
         return None
     return clean if len(clean) <= limit else clean[: limit - 1].rstrip() + "…"
+
+
+def _thumbnail(bundle: Path | None, records: list[dict[str, Any]]) -> str | None:
+    if bundle is None:
+        return None
+    record = next((item for item in records if item.get("role") in {"video", "image"}), None)
+    if not record or not isinstance(record.get("path"), str):
+        return None
+    media = (bundle / record["path"]).resolve()
+    if media.parent != bundle.resolve() and bundle.resolve() not in media.parents:
+        return None
+    try:
+        completed = subprocess.run([
+            "ffmpeg", "-v", "error", "-ss", "1", "-i", str(media),
+            "-frames:v", "1", "-vf", "scale=160:-2", "-q:v", "8",
+            "-f", "image2pipe", "-vcodec", "mjpeg", "-",
+        ], capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode or not completed.stdout or len(completed.stdout) > 40_000:
+        return None
+    return "data:image/jpeg;base64," + base64.b64encode(completed.stdout).decode("ascii")

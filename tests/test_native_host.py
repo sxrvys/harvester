@@ -335,6 +335,21 @@ class NativeHostTests(unittest.TestCase):
                 opened.assert_called_once_with(["open", str(readable)], check=True, capture_output=True)
                 self.assertIn("YouTube acquisition failed", readable.read_text(encoding="utf-8"))
 
+    def test_get_diagnostics_returns_only_safe_fields(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "diagnostics.json").write_text(json.dumps({"events": [{
+                "recorded_at": "now", "operation": "harvest_media_url", "code": "failed",
+                "message": "Safe detail", "application_version": "1.0.1",
+                "payload": {"media_url": "https://secret.example/?token=no"},
+            }]}), encoding="utf-8")
+            with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": str(root)}):
+                response = handle_message({
+                    "version": 1, "command": "get_diagnostics", "request_id": "abc", "payload": {},
+                })
+            self.assertEqual(response["result"]["events"][0]["message"], "Safe detail")
+            self.assertNotIn("payload", response["result"]["events"][0])
+
     def test_archival_batch_rejects_unsafe_controls_before_configuration(self) -> None:
         invalid_payloads = (
             {"count": 0, "min_delay": 10, "max_delay": 15},
