@@ -56,9 +56,11 @@ remain enforced in the companion rather than exposed as casual UI controls.
 
 ## Local diagnostic access
 
-Archival Harvest shows aggregate lifecycle counts and can open the local
-manual-review JSON through the operating system. It does not preview media,
-display captions, recommend content, rank assets, or create a media library.
+Archival Harvest shows aggregate lifecycle counts and can open a generated
+plain-text view of its structured manual-review state. Settings can similarly
+open a plain-text view of the bounded cross-operation diagnostics log. User-facing
+actions never launch internal JSON. The interface does not preview media, display
+captions, recommend content, rank assets, or create a media library.
 
 ## Native Messaging protocol
 
@@ -90,6 +92,7 @@ V1 commands:
 - `choose_output_folder`
 - `open_output_folder`
 - `open_failure_log`
+- `open_diagnostics`
 - `get_status`
 
 Safe response envelope:

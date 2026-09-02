@@ -29,7 +29,8 @@ The extension alone cannot acquire or process local media.
 8. Verify the installed native manifest allows exactly the release extension ID.
 9. Smoke-test status, settings, one supported URL, visible-media selection,
    local-file selection, output-folder opening, archival status, and failure-log
-   opening from the permanent installation.
+   opening from the permanent installation. Trigger one safe failure and confirm
+   Settings opens its sanitized plain-text diagnostic record.
 
 ## Signing boundary
 

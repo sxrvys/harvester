@@ -13,7 +13,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from harvester.native_host import (
-    MAX_MESSAGE_BYTES, ProtocolError, _detect_firefox_profile,
+    MAX_MESSAGE_BYTES, ProtocolError, _detect_firefox_profile, _record_diagnostic,
     handle_message, read_message, write_message,
 )
 
@@ -283,8 +283,12 @@ class NativeHostTests(unittest.TestCase):
                     "version": 1, "command": "open_failure_log",
                     "request_id": "abc", "payload": {},
                 })
-        self.assertEqual(response["result"], {"state": "opened"})
-        opened.assert_called_once_with(["open", str(failure_log)], check=True, capture_output=True)
+            self.assertEqual(response["result"], {"state": "opened"})
+            readable_log = root / "failure-log.txt"
+            opened.assert_called_once_with(["open", str(readable_log)], check=True, capture_output=True)
+            text = readable_log.read_text(encoding="utf-8")
+            self.assertIn("Harvester archival failure log", text)
+            self.assertIn("Items requiring manual review: 0", text)
 
     def test_open_failure_log_reports_when_no_failures_exist(self) -> None:
         with TemporaryDirectory() as temporary, patch.dict(
@@ -295,6 +299,41 @@ class NativeHostTests(unittest.TestCase):
                 "request_id": "abc", "payload": {},
             })
         self.assertEqual(raised.exception.code, "output_unavailable")
+
+    def test_diagnostics_are_bounded_and_never_store_request_payloads(self) -> None:
+        with TemporaryDirectory() as temporary, patch.dict(
+            "os.environ", {"HARVESTER_STATE_ROOT": temporary}
+        ):
+            for index in range(105):
+                _record_diagnostic(
+                    ProtocolError("acquisition_failed", f"Safe failure {index}"),
+                    "harvest_url",
+                )
+            path = Path(temporary) / "diagnostics.json"
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(len(payload["events"]), 100)
+            self.assertEqual(payload["events"][0]["message"], "Safe failure 5")
+            self.assertNotIn("payload", path.read_text(encoding="utf-8"))
+
+    def test_open_diagnostics_launches_only_plain_text(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "diagnostics.json").write_text(json.dumps({"events": [{
+                "recorded_at": "now", "operation": "harvest_url",
+                "code": "acquisition_failed", "message": "YouTube acquisition failed",
+                "application_version": "1.0.0",
+            }]}), encoding="utf-8")
+            with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": str(root)}), patch(
+                "harvester.native_host.subprocess.run"
+            ) as opened:
+                response = handle_message({
+                    "version": 1, "command": "open_diagnostics",
+                    "request_id": "abc", "payload": {},
+                })
+                readable = root / "diagnostics.txt"
+                self.assertEqual(response["result"], {"state": "opened"})
+                opened.assert_called_once_with(["open", str(readable)], check=True, capture_output=True)
+                self.assertIn("YouTube acquisition failed", readable.read_text(encoding="utf-8"))
 
     def test_archival_batch_rejects_unsafe_controls_before_configuration(self) -> None:
         invalid_payloads = (

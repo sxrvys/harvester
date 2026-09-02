@@ -139,6 +139,9 @@ registration, and Mozilla-signing requirements.
 The V1 release target is Firefox desktop 142 or newer on macOS. The extension
 declares that it collects or transmits no data, and the installed companion keeps
 settings, archival state, diagnostics, and output local to the user's machine.
+Settings exposes a plain-text view of the newest 100 sanitized operational
+failures for support and contributor debugging; internal JSON, sensitive URLs,
+authentication material, and local source paths are never opened or displayed.
 
 Offline archive checks and naming review:
 

@@ -8,6 +8,7 @@ const audioPreset = document.querySelector("#audio-preset");
 const chooseOutput = document.querySelector("#choose-output");
 const save = document.querySelector("#save");
 const status = document.querySelector("#status");
+const diagnostics = document.querySelector("#diagnostics");
 
 function requestId() {
   return crypto.randomUUID();
@@ -75,6 +76,20 @@ chooseOutput.addEventListener("click", async () => {
     status.textContent = "Local companion unavailable";
   } finally {
     chooseOutput.disabled = false;
+  }
+});
+
+diagnostics.addEventListener("click", async () => {
+  diagnostics.disabled = true;
+  try {
+    const response = await send("open_diagnostics", {});
+    status.textContent = response && response.ok
+      ? "Diagnostics opened"
+      : response && response.error && response.error.message || "Diagnostics unavailable";
+  } catch (error) {
+    status.textContent = "Local companion unavailable";
+  } finally {
+    diagnostics.disabled = false;
   }
 });
 

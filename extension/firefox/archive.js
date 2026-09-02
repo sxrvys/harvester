@@ -29,15 +29,24 @@ function renderStatus(result) {
   return result.latest_batch || null;
 }
 
-function operationMessage(operation) {
-  const result = operation && operation.result;
-  if (operation && operation.state === "complete" && result
-      && Number.isInteger(result.complete) && Number.isInteger(result.failed)) {
+function batchCompleteMessage(result) {
+  if (result && Number.isInteger(result.complete) && Number.isInteger(result.failed)) {
     const downloadedLabel = result.complete === 1 ? "post" : "posts";
     const skippedLabel = result.failed === 1 ? "post" : "posts";
     return `Archival batch complete — ${result.complete} ${downloadedLabel} downloaded, ${result.failed} ${skippedLabel} skipped`;
   }
-  return operation.message;
+  return null;
+}
+
+function operationMessage(operation, latestBatch) {
+  const storedResult = operation && operation.state === "complete"
+    ? batchCompleteMessage(operation.result)
+    : null;
+  if (storedResult) return storedResult;
+  const durableResult = latestBatch && latestBatch.running === 0 && latestBatch.pending === 0
+    ? batchCompleteMessage(latestBatch)
+    : null;
+  return durableResult || operation.message;
 }
 
 async function refresh() {
@@ -49,7 +58,7 @@ async function refresh() {
     const progress = response && response.ok ? renderStatus(response.result) : null;
     status.textContent = operation.state === "running" && progress
       ? `${operation.message} ${progress.complete + progress.failed}/${progress.count} finished.`
-      : operationMessage(operation);
+      : operationMessage(operation, progress);
     const running = operation.state === "running";
     scan.disabled = running;
     batch.disabled = running;

@@ -19,6 +19,7 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
 - bounded batch size and randomized minimum/maximum delay controls;
 - **Harvest next batch**;
 - current operation and last-result status;
+- a readable plain-text failure log generated from the structured local JSON;
 - the approved account-risk warning.
 
 ## Scan contract
@@ -47,6 +48,8 @@ The Firefox extension provides a separate **Archival Harvest** screen showing:
 - Results synchronize into the lifecycle ledger and remain inspectable locally.
 - Completion reports separate downloaded and skipped counts rather than implying
   that every requested post produced media.
+- The latest completed-batch result is reconstructed from the durable native batch
+  record when extension-local presentation state is unavailable.
 
 The screen displays:
 

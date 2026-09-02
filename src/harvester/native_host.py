@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO
 from urllib.parse import urlsplit
@@ -20,6 +21,7 @@ from .audio import AUDIO_PRESETS, DEFAULT_AUDIO_PRESET
 PROTOCOL_VERSION = 1
 MAX_MESSAGE_BYTES = 1024 * 1024
 SETTINGS_SCHEMA_VERSION = 1
+MAX_DIAGNOSTIC_EVENTS = 100
 
 
 @dataclass(frozen=True)
@@ -419,13 +421,121 @@ def _open_output_folder(request_id: str, settings_path: Path) -> dict[str, objec
 
 
 def _open_failure_log(request_id: str) -> dict[str, object]:
-    failure_log = _archival_paths()["manual_review"]
+    paths = _archival_paths()
+    failure_log = paths["manual_review"]
+    readable_log = paths["root"] / "failure-log.txt"
     if not failure_log.is_file():
         raise ProtocolError("output_unavailable", "No archival failures have been recorded", request_id)
     try:
-        subprocess.run(["open", str(failure_log)], check=True, capture_output=True)
-    except (OSError, subprocess.CalledProcessError):
+        payload = json.loads(failure_log.read_text(encoding="utf-8"))
+        items = payload.get("items") if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            raise ValueError("invalid failure log")
+        lines = ["Harvester archival failure log", "", f"Items requiring manual review: {len(items)}", ""]
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            clean = lambda value: " ".join(str(value or "Unavailable").splitlines())
+            lines.extend([
+                f"{index}. {clean(item.get('source_id'))}",
+                f"   Source: {clean(item.get('source'))}",
+                f"   Status: {clean(item.get('status'))}",
+                f"   Reason: {clean(item.get('reason'))}",
+                f"   Recorded: {clean(item.get('recorded_at'))}",
+                f"   URL: {clean(item.get('source_url'))}",
+                "",
+            ])
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".failure-log-", suffix=".tmp", dir=paths["root"]
+        )
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines))
+            os.chmod(temporary_name, 0o600)
+            os.replace(temporary_name, readable_log)
+        except BaseException:
+            Path(temporary_name).unlink(missing_ok=True)
+            raise
+        subprocess.run(["open", str(readable_log)], check=True, capture_output=True)
+    except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError, subprocess.CalledProcessError):
         raise ProtocolError("output_unavailable", "The failure log could not be opened", request_id) from None
+    return {"state": "opened"}
+
+
+def _record_diagnostic(error: ProtocolError, command: object = None) -> None:
+    """Persist one bounded, sanitized native failure without request payload data."""
+    paths = _archival_paths()
+    destination = paths["root"] / "diagnostics.json"
+    paths["root"].mkdir(parents=True, exist_ok=True)
+    events: list[dict[str, str]] = []
+    try:
+        if destination.is_file():
+            existing = json.loads(destination.read_text(encoding="utf-8"))
+            if isinstance(existing, dict) and isinstance(existing.get("events"), list):
+                events = [event for event in existing["events"] if isinstance(event, dict)]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        events = []
+    operation = command if isinstance(command, str) and len(command) <= 80 else "unknown"
+    events.append({
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "operation": operation,
+        "code": error.code[:80],
+        "message": " ".join(error.message.splitlines())[:500],
+        "application_version": __version__,
+    })
+    payload = {"schema_version": 1, "events": events[-MAX_DIAGNOSTIC_EVENTS:]}
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".diagnostics-", suffix=".tmp", dir=paths["root"]
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+        os.chmod(temporary_name, 0o600)
+        os.replace(temporary_name, destination)
+    except BaseException:
+        Path(temporary_name).unlink(missing_ok=True)
+        raise
+
+
+def _open_diagnostics(request_id: str) -> dict[str, object]:
+    paths = _archival_paths()
+    structured_log = paths["root"] / "diagnostics.json"
+    readable_log = paths["root"] / "diagnostics.txt"
+    if not structured_log.is_file():
+        raise ProtocolError("output_unavailable", "No diagnostics have been recorded", request_id)
+    try:
+        payload = json.loads(structured_log.read_text(encoding="utf-8"))
+        events = payload.get("events") if isinstance(payload, dict) else None
+        if not isinstance(events, list):
+            raise ValueError("invalid diagnostics")
+        lines = ["Harvester diagnostics", "", f"Most recent events retained: {len(events)}", ""]
+        for index, event in enumerate(events, start=1):
+            if not isinstance(event, dict):
+                continue
+            clean = lambda value: " ".join(str(value or "Unavailable").splitlines())
+            lines.extend([
+                f"{index}. {clean(event.get('recorded_at'))}",
+                f"   Operation: {clean(event.get('operation'))}",
+                f"   Error: {clean(event.get('code'))}",
+                f"   Detail: {clean(event.get('message'))}",
+                f"   Harvester: {clean(event.get('application_version'))}",
+                "",
+            ])
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".diagnostics-", suffix=".tmp", dir=paths["root"]
+        )
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines))
+            os.chmod(temporary_name, 0o600)
+            os.replace(temporary_name, readable_log)
+        except BaseException:
+            Path(temporary_name).unlink(missing_ok=True)
+            raise
+        subprocess.run(["open", str(readable_log)], check=True, capture_output=True)
+    except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError, subprocess.CalledProcessError):
+        raise ProtocolError("output_unavailable", "Diagnostics could not be opened", request_id) from None
     return {"state": "opened"}
 
 
@@ -610,6 +720,15 @@ def handle_message(
             "ok": True,
             "result": _open_failure_log(request_id),
         }
+    if command == "open_diagnostics":
+        if payload:
+            raise ProtocolError("invalid_request", "open_diagnostics payload must be empty", request_id)
+        return {
+            "version": PROTOCOL_VERSION,
+            "request_id": request_id,
+            "ok": True,
+            "result": _open_diagnostics(request_id),
+        }
     if command == "harvest_media_url":
         result = _harvest_media_url(payload, request_id, settings_path or _settings_path())
         return {
@@ -642,17 +761,27 @@ def main() -> int:
     input_stream = sys.stdin.buffer
     output_stream = sys.stdout.buffer
     while True:
+        message: dict[str, object] | None = None
         try:
             message = read_message(input_stream)
             if message is None:
                 return 0
             response = handle_message(message)
         except ProtocolError as error:
+            try:
+                _record_diagnostic(error, message.get("command") if isinstance(message, dict) else None)
+            except Exception:
+                pass
             response = error_response(error)
         except Exception:
             # Native stdout is protocol-only. Never expose paths, commands,
             # downloader output, or exception details to the extension.
-            response = error_response(ProtocolError("processing_failed", "Native companion failed safely"))
+            error = ProtocolError("processing_failed", "Native companion failed safely")
+            try:
+                _record_diagnostic(error, message.get("command") if isinstance(message, dict) else None)
+            except Exception:
+                pass
+            response = error_response(error)
         write_message(output_stream, response)
 
 
