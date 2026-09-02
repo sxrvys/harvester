@@ -201,7 +201,5 @@ procedure.
 
 Interesting source material has a habit of disappearing—or becoming impossible to
 find the moment inspiration strikes. Harvester is a small tool for catching those
-fragments while respecting the person using it, the machine it runs on, and the
-limits of the job.
+fragments.
 
-Find something. Save it with context. Make something new.
