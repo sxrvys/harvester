@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/harvester-glyph.svg" width="120" alt="Harvester logo">
+</p>
+
 # Harvester
 
 Harvester is a local-first Firefox extension for artists, musicians, editors,
