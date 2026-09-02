@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OUTPUT_ROOT=${1:-"$PROJECT_ROOT/dist"}
+VERSION=$(PYTHONPATH="$PROJECT_ROOT/src" python3 -c 'import harvester; print(harvester.__version__)')
+PACKAGE="$OUTPUT_ROOT/harvester-macos-companion-$VERSION.tar.gz"
+STAGING=$(mktemp -d "${TMPDIR:-/tmp}/harvester-companion.XXXXXX")
+PAYLOAD="$STAGING/harvester-macos-companion-$VERSION"
+
+mkdir -p "$OUTPUT_ROOT" "$PAYLOAD/scripts" "$PAYLOAD/src/harvester"
+cp "$PROJECT_ROOT/pyproject.toml" "$PROJECT_ROOT/README.md" \
+  "$PROJECT_ROOT/PROJECT_CONSTITUTION.md" "$PROJECT_ROOT/LICENSING.md" "$PAYLOAD/"
+find "$PROJECT_ROOT/src/harvester" -maxdepth 1 -type f -name '*.py' \
+  -exec cp '{}' "$PAYLOAD/src/harvester/" ';'
+cp "$PROJECT_ROOT/scripts/install-macos-companion" "$PAYLOAD/scripts/"
+rm -f "$PACKAGE"
+tar -czf "$PACKAGE" -C "$STAGING" "$(basename "$PAYLOAD")"
+tar -tzf "$PACKAGE" >/dev/null
+printf '%s\n' "$PACKAGE"

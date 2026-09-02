@@ -271,6 +271,31 @@ class NativeHostTests(unittest.TestCase):
         self.assertEqual(response["result"]["summary"]["discovered"], 7)
         self.assertEqual(response["result"]["last_scan"]["new_count"], 2)
 
+    def test_open_failure_log_opens_only_the_private_manual_review_file(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            failure_log = root / "manual-review.json"
+            failure_log.write_text('{"items": []}', encoding="utf-8")
+            with patch.dict("os.environ", {"HARVESTER_STATE_ROOT": str(root)}), patch(
+                "harvester.native_host.subprocess.run"
+            ) as opened:
+                response = handle_message({
+                    "version": 1, "command": "open_failure_log",
+                    "request_id": "abc", "payload": {},
+                })
+        self.assertEqual(response["result"], {"state": "opened"})
+        opened.assert_called_once_with(["open", str(failure_log)], check=True, capture_output=True)
+
+    def test_open_failure_log_reports_when_no_failures_exist(self) -> None:
+        with TemporaryDirectory() as temporary, patch.dict(
+            "os.environ", {"HARVESTER_STATE_ROOT": temporary}
+        ), self.assertRaises(ProtocolError) as raised:
+            handle_message({
+                "version": 1, "command": "open_failure_log",
+                "request_id": "abc", "payload": {},
+            })
+        self.assertEqual(raised.exception.code, "output_unavailable")
+
     def test_archival_batch_rejects_unsafe_controls_before_configuration(self) -> None:
         invalid_payloads = (
             {"count": 0, "min_delay": 10, "max_delay": 15},

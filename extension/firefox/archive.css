@@ -15,6 +15,7 @@ section { border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
 label { font-weight: 650; }
 input { box-sizing: border-box; display: block; font: inherit; margin-top: 7px; padding: 8px; width: 100%; }
 button { font: inherit; margin-top: 10px; padding: 9px 14px; }
+.secondary { margin-left: 8px; }
 .warning { border-left: 4px solid #c77d00; margin: 22px 0 10px; padding: 4px 12px; }
 #status { margin-top: 24px; }
 @media (max-width: 620px) { .counts, .controls { grid-template-columns: 1fr 1fr; } }

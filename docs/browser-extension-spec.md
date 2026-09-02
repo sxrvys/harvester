@@ -1,10 +1,11 @@
 # Browser extension and native companion specification
 
-Status: agreed product contract for the Firefox-first proof of concept.
+Status: implemented Firefox V1 contract.
 
-Implementation note (2026-08-30): the Native Messaging host, settings flow,
-background-owned Instagram `harvest_url`, durable safe popup status, output-folder
-action, and ledger reconciliation are implemented and manually accepted.
+Implementation note (2026-09-02): the Native Messaging host, supported-source
+adapters, one-shot visible-media picker, local-file workflow, settings, and
+Instagram Archival Harvest are implemented and manually accepted. Packaging and
+Mozilla signing are tracked separately in `release-checklist.md`.
 
 ## Purpose
 
@@ -31,54 +32,33 @@ The toolbar popup contains only:
 
 - the current page host and shortened URL;
 - **Harvest this**;
-- **Harvest next oldest batch** under an Instagram Saved section;
+- **Select visible media** on unsupported pages;
 - the latest safe status message;
 - **Open output folder**;
+- **Harvest local file**;
+- **Archival Harvest**;
 - **Settings**;
-- **View database**.
 
-`Harvest this` is always the primary action. Saved backlog processing is
-visually secondary and available only when its adapter is configured.
+`Harvest this` is always the primary action. Local-file and Instagram Saved
+backlog processing remain visually secondary and use distinct code paths.
 
 ## Settings
 
 - Output folder, selected through an operating-system folder picker presented by
   the native companion.
-- Output switches:
-  - preserve original;
-  - keep playable video;
-  - extract 48 kHz/24-bit stereo WAV.
-- Convenience presets:
-  - audio only;
-  - video only;
-  - video plus separate WAV;
-  - full archive.
-- Generic maximum duration: 10 minutes by default.
-- Generic maximum source bytes: 500 MB by default.
-- Instagram batch count: 10 by default.
-- Instagram inter-item delay: random 10-15 seconds by default and never below
-  10 seconds.
+- One global future-audio preset: production WAV, standard WAV, FLAC, 320 kbps
+  MP3, or 192 kbps MP3.
 - Explicit Firefox profile used for authorized Instagram work.
 
-At least one output switch must remain enabled. A deliberate one-item override
-may exceed the defaults, but the companion retains an absolute ceiling of 30
-minutes and 2 GB to prevent accidental or scope-breaking jobs.
+Originals are always preserved. There is no per-harvest format choice, video
+transcoding, or retroactive batch conversion. Generic and supported-source limits
+remain enforced in the companion rather than exposed as casual UI controls.
 
-## Database view
+## Local diagnostic access
 
-The database action opens a small local ledger view, not a media library. It may
-show only:
-
-- readable name;
-- source;
-- lifecycle status;
-- output path;
-- harvest date;
-- Open Folder;
-- Open raw JSON.
-
-It does not preview media, display captions, recommend content, rank assets, or
-create an organizational database beyond the authoritative JSON ledger.
+Archival Harvest shows aggregate lifecycle counts and can open the local
+manual-review JSON through the operating system. It does not preview media,
+display captions, recommend content, rank assets, or create a media library.
 
 ## Native Messaging protocol
 
@@ -97,16 +77,19 @@ Request envelope:
 }
 ```
 
-Initial commands:
+V1 commands:
 
 - `harvest_url`
-- `harvest_oldest_batch`
+- `harvest_media_url`
+- `harvest_local_file`
+- `get_archival_status`
+- `scan_saved_posts`
+- `harvest_archival_batch`
 - `get_settings`
 - `update_settings`
 - `choose_output_folder`
 - `open_output_folder`
-- `get_ledger`
-- `open_raw_ledger`
+- `open_failure_log`
 - `get_status`
 
 Safe response envelope:
@@ -220,17 +203,20 @@ to defeat those boundaries.
 
 Human-readable messages may accompany these codes but must be sanitized.
 
-## Implementation sequence
+## Implemented sequence
 
 1. Native host reads and writes versioned messages over standard input/output.
 2. `get_status` and `harvest_url` call the existing local engine.
 3. Minimal Firefox popup sends the current URL after an explicit click.
 4. Add settings and operating-system destination selection.
 5. Add `harvest_oldest_batch` using the existing ledger and batch workflow.
-6. Add Open Folder and the minimal ledger view.
+6. Add Open Folder and aggregate archival status.
 7. Add the explicit generic media-element picker.
-8. Derive Chrome packaging from the same WebExtension code and a browser-specific
-   native-host registration manifest.
+8. Add explicit one-file local harvesting and safe failure-log access.
+9. Package and sign Firefox V1 with its macOS companion.
+
+Chrome derivation is post-V1 work and requires its own browser-specific native
+host manifest and acceptance pass.
 
 No later step begins by expanding permissions. Any permission change requires a
 documented feature need and explicit review against the privacy invariants.

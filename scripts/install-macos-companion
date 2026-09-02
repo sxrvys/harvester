@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PYTHON_BIN=${PYTHON_BIN:-python3}
+VERSION=$($PYTHON_BIN -c 'import pathlib,re,sys; print(re.search(r"__version__ = \"([^\"]+)\"", pathlib.Path(sys.argv[1]).read_text()).group(1))' "$PROJECT_ROOT/src/harvester/__init__.py" 2>/dev/null || true)
+
+if [ "$(uname -s)" != "Darwin" ]; then
+  printf '%s\n' "This V1 companion installer supports macOS only." >&2
+  exit 1
+fi
+if [ -z "$VERSION" ]; then
+  printf '%s\n' "Could not read the Harvester version." >&2
+  exit 1
+fi
+
+for tool in ffmpeg ffprobe yt-dlp deno; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    printf '%s\n' "Missing required tool: $tool" >&2
+    printf '%s\n' "Install prerequisites with: brew install ffmpeg yt-dlp deno" >&2
+    exit 1
+  fi
+done
+
+APPLICATION_ROOT="$HOME/Library/Application Support/harvester"
+RUNTIME_ROOT="$APPLICATION_ROOT/runtime-$VERSION"
+VENV_ROOT="$RUNTIME_ROOT/venv"
+STATE_ROOT="$APPLICATION_ROOT/state"
+LAUNCHER="$APPLICATION_ROOT/harvester-native-host"
+MANIFEST_ROOT="$HOME/Library/Application Support/Mozilla/NativeMessagingHosts"
+MANIFEST="$MANIFEST_ROOT/com.harvester.native.json"
+
+mkdir -p "$APPLICATION_ROOT" "$STATE_ROOT" "$MANIFEST_ROOT"
+
+# Import an existing development archive queue only on first installation.
+# Installed state is authoritative afterward and is never overwritten here.
+if [ ! -e "$STATE_ROOT/item-ledger.json" ] && [ -f "$PROJECT_ROOT/state/item-ledger.json" ]; then
+  cp -R "$PROJECT_ROOT/state/." "$STATE_ROOT/"
+fi
+
+"$PYTHON_BIN" -m venv "$VENV_ROOT"
+"$VENV_ROOT/bin/python" -m pip install --disable-pip-version-check "$PROJECT_ROOT"
+
+TEMP_LAUNCHER=$(mktemp "$APPLICATION_ROOT/.harvester-native-host.XXXXXX")
+{
+  printf '%s\n' '#!/bin/sh' 'set -eu'
+  printf '%s\n' 'export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"'
+  printf 'export HARVESTER_STATE_ROOT="%s"\n' "$STATE_ROOT"
+  printf 'exec "%s/bin/harvester-native-host"\n' "$VENV_ROOT"
+} > "$TEMP_LAUNCHER"
+chmod 755 "$TEMP_LAUNCHER"
+mv "$TEMP_LAUNCHER" "$LAUNCHER"
+
+TEMP_MANIFEST=$(mktemp "$MANIFEST_ROOT/.com.harvester.native.XXXXXX")
+python3 -c 'import json,sys; json.dump({"name":"com.harvester.native","description":"Local Native Messaging companion for Harvester","path":sys.argv[1],"type":"stdio","allowed_extensions":[sys.argv[2]]},open(sys.argv[3],"w"),indent=2); open(sys.argv[3],"a").write("\n")' \
+  "$LAUNCHER" "@harvester-sxrvys" "$TEMP_MANIFEST"
+chmod 600 "$TEMP_MANIFEST"
+mv "$TEMP_MANIFEST" "$MANIFEST"
+
+printf '%s\n' "Installed Harvester $VERSION native companion."
+printf '%s\n' "Reload or restart Firefox after installing the extension."

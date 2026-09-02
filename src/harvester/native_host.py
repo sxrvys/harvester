@@ -418,6 +418,17 @@ def _open_output_folder(request_id: str, settings_path: Path) -> dict[str, objec
     return {"state": "opened"}
 
 
+def _open_failure_log(request_id: str) -> dict[str, object]:
+    failure_log = _archival_paths()["manual_review"]
+    if not failure_log.is_file():
+        raise ProtocolError("output_unavailable", "No archival failures have been recorded", request_id)
+    try:
+        subprocess.run(["open", str(failure_log)], check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError):
+        raise ProtocolError("output_unavailable", "The failure log could not be opened", request_id) from None
+    return {"state": "opened"}
+
+
 def _choose_output_folder(request_id: str) -> dict[str, object]:
     script = 'POSIX path of (choose folder with prompt "Choose Harvester output folder")'
     try:
@@ -589,6 +600,15 @@ def handle_message(
             "request_id": request_id,
             "ok": True,
             "result": _open_output_folder(request_id, settings_path or _settings_path()),
+        }
+    if command == "open_failure_log":
+        if payload:
+            raise ProtocolError("invalid_request", "open_failure_log payload must be empty", request_id)
+        return {
+            "version": PROTOCOL_VERSION,
+            "request_id": request_id,
+            "ok": True,
+            "result": _open_failure_log(request_id),
         }
     if command == "harvest_media_url":
         result = _harvest_media_url(payload, request_id, settings_path or _settings_path())

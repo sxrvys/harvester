@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OUTPUT_ROOT=${1:-"$PROJECT_ROOT/dist"}
+VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$PROJECT_ROOT/extension/firefox/manifest.json")
+PACKAGE="$OUTPUT_ROOT/harvester-firefox-$VERSION.zip"
+
+mkdir -p "$OUTPUT_ROOT"
+rm -f "$PACKAGE"
+(
+  cd "$PROJECT_ROOT/extension/firefox"
+  zip -X -q -r "$PACKAGE" . -x '*.DS_Store'
+)
+unzip -tq "$PACKAGE"
+printf '%s\n' "$PACKAGE"

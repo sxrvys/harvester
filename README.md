@@ -123,6 +123,23 @@ Requires Python 3.11+ and FFmpeg/FFprobe on `PATH`.
 python3 -m unittest discover -s tests -v
 ```
 
+Firefox V1 release artifacts are built separately because the browser extension
+communicates with a local macOS companion:
+
+```sh
+scripts/build-firefox-extension
+scripts/build-macos-companion
+```
+
+The companion package contains its installer and Python source but no settings,
+authentication material, ledger, or media. See
+[`docs/release-checklist.md`](docs/release-checklist.md) for validation, native
+registration, and Mozilla-signing requirements.
+
+The V1 release target is Firefox desktop 142 or newer on macOS. The extension
+declares that it collects or transmits no data, and the installed companion keeps
+settings, archival state, diagnostics, and output local to the user's machine.
+
 Offline archive checks and naming review:
 
 ```sh

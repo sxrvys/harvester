@@ -20,6 +20,8 @@ details { margin-top: 8px; }
 details input { box-sizing: border-box; margin-top: 8px; width: 100%; }
 summary { cursor: pointer; font-weight: 650; }
 #status { color: GrayText; margin-top: 18px; }
+.project-link { font-size: 0.85em; margin-top: 28px; }
+.project-link a { color: GrayText; }
 
 @media (prefers-color-scheme: dark) {
   header img { content: url("icons/glyph-light.svg"); }

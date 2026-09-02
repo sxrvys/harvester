@@ -9,6 +9,7 @@ const lastScan = document.querySelector("#last-scan");
 const status = document.querySelector("#status");
 const scan = document.querySelector("#scan");
 const batch = document.querySelector("#batch");
+const failureLog = document.querySelector("#failure-log");
 const count = document.querySelector("#count");
 const minDelay = document.querySelector("#min-delay");
 const maxDelay = document.querySelector("#max-delay");
@@ -80,6 +81,22 @@ batch.addEventListener("click", async () => {
   });
   status.textContent = response && response.accepted ? "Harvesting oldest saved batch… Keep Firefox open." : "Another operation is running";
   await refresh();
+});
+
+failureLog.addEventListener("click", async () => {
+  failureLog.disabled = true;
+  try {
+    const response = await browser.runtime.sendNativeMessage("com.harvester.native", {
+      version: 1, command: "open_failure_log", request_id: crypto.randomUUID(), payload: {}
+    });
+    status.textContent = response && response.ok
+      ? "Failure log opened"
+      : response && response.error && response.error.message || "Failure log unavailable";
+  } catch (error) {
+    status.textContent = "Local companion unavailable";
+  } finally {
+    failureLog.disabled = false;
+  }
 });
 
 setInterval(refresh, 1000);

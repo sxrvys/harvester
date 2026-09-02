@@ -80,7 +80,7 @@ Resource limits agreed for generic inputs:
 - Repository: `https://github.com/sxrvys/harvester` (private for now).
 - Local repository: `/Users/scott/Documents/harvester`.
 - Python package and CLI name: `harvester`.
-- Firefox extension ID: `harvester@localhost`.
+- Firefox extension ID: `@harvester-sxrvys`.
 - Native Messaging application: `com.harvester.native`.
 - Approved glyph assets are under `assets/brand/`; explicit black/white toolbar
   variants support light and dark themes.
@@ -256,6 +256,27 @@ entry was created. A verification pass caught and fixed ffprobe's absolute
 and the accepted bundle was sanitized. Local harvesting remains deliberately
 one-file-at-a-time with no folders, watchers, batch conversion, or retained source
 directory.
+
+## Firefox V1 release candidate
+
+On 2026-09-02 the package, native companion, and extension advanced to version
+1.0.0 with stable Firefox ID `@harvester-sxrvys`. Mozilla `web-ext` validation
+passes with zero errors, notices, or warnings; the manifest explicitly declares
+no data collection or transmission. The supported release boundary is Firefox
+desktop 142 or newer plus the macOS companion.
+
+Reproducible builders create separate extension and companion archives under the
+Git-ignored `dist/` directory. The companion installer was proven first in an
+isolated home and then installed live under `~/Library/Application Support/harvester`.
+It owns a versioned virtual environment and private state directory rather than
+depending on this repository. The existing 462-item Saved index and ledger were
+migrated byte-for-byte, and a framed live status request returned version 1.0.0,
+configured and ready. The native manifest permits only the stable extension ID.
+
+Remaining release work: reload and smoke-test the temporary extension under its
+new identity, submit it to Mozilla for unlisted signing with owner-controlled AMO
+credentials, install the signed XPI, and repeat the short smoke test. Do not put
+AMO credentials in the repository, settings, logs, or chat.
 
 ## Working preferences
 

@@ -3,5 +3,5 @@
   "description": "Local Native Messaging companion for harvester",
   "path": "@NATIVE_HOST_PATH@",
   "type": "stdio",
-  "allowed_extensions": ["harvester@localhost"]
+  "allowed_extensions": ["@harvester-sxrvys"]
 }
