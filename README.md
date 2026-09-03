@@ -58,17 +58,24 @@ that handles downloads and media processing.
    brew install python ffmpeg yt-dlp deno
    ```
 
-3. Download and extract `harvester-macos-companion-1.0.2.tar.gz`. In Terminal,
-   enter the extracted folder and run:
+3. Download and extract
+   [`harvester-macos-companion-1.0.2.tar.gz`](https://github.com/sxrvys/harvester/releases/download/v1.0.2/harvester-macos-companion-1.0.2.tar.gz).
+   In Terminal, enter the extracted folder and run:
 
    ```sh
    scripts/install-macos-companion
    ```
 
-4. Download the Mozilla-signed `.xpi`.
-5. In Firefox, open `about:addons`, click the gear, choose **Install Add-on From
-   File…**, and select the `.xpi`.
-6. Open Harvester. If it says **Local companion ready**, you're ready to go.
+4. Download
+   [`harvester-firefox-1.0.2-signed.xpi`](https://github.com/sxrvys/harvester/releases/download/v1.0.2/harvester-firefox-1.0.2-signed.xpi).
+   Do not double-click it in Finder; macOS does not install Firefox extensions.
+5. In Firefox, type `about:addons` in the address bar and press Return.
+6. Click the gear button near **Manage Your Extensions** and choose **Install
+   Add-on From File…**
+7. Select `harvester-firefox-1.0.2-signed.xpi` from your Downloads folder and
+   approve Firefox's installation prompt.
+8. Open Harvester from Firefox's extensions button. If it says **Local companion
+   ready**, you're ready to go.
 
 V1.0.2 supports Firefox desktop 142 or newer on macOS.
 
@@ -202,4 +209,3 @@ procedure.
 Interesting source material has a habit of disappearing—or becoming impossible to
 find the moment inspiration strikes. Harvester is a small tool for catching those
 fragments.
-
