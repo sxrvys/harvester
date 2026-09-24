@@ -37,7 +37,7 @@ class LocalFileTests(unittest.TestCase):
             archive.mkdir()
             destination = archive / "duckandc1951_abc"
             facts = {
-                "format": {"duration": "555.0"},
+                "format": {"duration": "3600.0"},
                 "streams": [{"codec_type": "video"}, {"codec_type": "audio"}],
             }
             with patch("harvester.local_file.probe", return_value=facts), patch(
@@ -76,7 +76,7 @@ class LocalFileTests(unittest.TestCase):
             with patch("harvester.local_file.probe", return_value={"format": {"duration": "1"}, "streams": []}), self.assertRaises(LocalFileError) as unsupported:
                 harvest_local_file(source, root)
             self.assertEqual(unsupported.exception.code, "unsupported_media")
-            facts = {"format": {"duration": "601"}, "streams": [{"codec_type": "video"}]}
+            facts = {"format": {"duration": "3601"}, "streams": [{"codec_type": "video"}]}
             with patch("harvester.local_file.probe", return_value=facts), self.assertRaises(LocalFileError) as duration:
                 harvest_local_file(source, root)
             self.assertEqual(duration.exception.code, "duration_limit")

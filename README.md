@@ -1,211 +1,142 @@
 <p align="center">
-  <img src="assets/brand/harvester-glyph.svg" width="120" alt="Harvester logo">
+  <img src="app/Assets/HarvesterIcon.png" width="160" alt="Harvester: a scythe behind a CRT television">
 </p>
 
-# Harvester
+# Harvester 2.2
 
-Harvester is a local-first Firefox extension for artists, musicians, editors,
-researchers, and people who collect source material online for later. It saves the
-original media, makes a practical audio derivative, and records enough provenance
-to remember where it came from—all in ordinary files on your Mac.
+**Find it. Queue it. Keep going.**
 
-It works with individual Instagram, YouTube, and Reddit posts, visible video or
-audio on other sites, and one local file at a time. It can also work through your
-Instagram Saved collection in small, deliberately paced batches, starting with the
-oldest things you saved.
+Harvester collects source material for found sound, video collage, and other art
+projects. Paste a link or a batch of links into the Mac app, or send the page
+you're browsing from Firefox. Each completed video harvest gives you a silent
+H.264 MP4 and separate audio in a normally named folder. Downloaded originals
+are discarded; local input files are left untouched.
 
-Harvester is intentionally focused. It is not a general scraper, feed crawler,
-playlist downloader, media library, or batch converter. It
-only acts when you ask it to harvest something.
+Built by **Scott and Splice**. Splice is the nickname for the Codex collaborator
+on Harvester. One human, one coding agent, a lot of strange footage.
 
-## What it can do
+## What you can do
 
-- Harvest individual Instagram posts and Reels, including every media item in a
-  carousel.
-- Natively harvest individual YouTube videos and Reddit media posts.
-- Let you point at one visible video or audio player on another website and make a
-  bounded attempt to preserve it.
-- Turn one local audio or video file into a tidy, self-contained Harvester bundle.
-- Maintain multiple Instagram Saved archives or collections, each with its own
-  queue and progress, and work through them oldest-first in small paced batches.
-- Recognize posts shared between collections and keep one copy instead of
-  downloading duplicates.
-- Create a practical audio derivative automatically. Choose 24-bit or 16-bit WAV,
-  FLAC, or 320/192 kbps MP3 in Settings.
-- Keep the original media, useful derivatives, source attribution, and technical
-  metadata together in an ordinary folder you control.
-- Review the latest archival batch, rename its folders, reveal an item in Finder,
-  or move an unwanted item safely to Trash.
-- Prepare a readable, privacy-conscious bug report when something fails—without
-  silently sending anything anywhere.
+- Submit multiple links or local files and keep adding while harvesting runs.
+- Name links in one box: `https://example.com/video:My clip name` (one per line).
+- Choose start/end times, all-keyframe H.264 for seeking or smaller H.264, and
+  separate 24-bit WAV or lossless FLAC audio.
+- Preview completed videos, reveal their bundles, and retry failed jobs.
+- Select multiple completed videos and send them to Chromatron in one action.
+  Select unsent helps avoid repeat handoffs; Sent labels persist across launches.
+- Adjust source limits in **Harvester → Settings** (`⌘,`). Defaults are 60 minutes
+  and 500 MB; ceilings are six hours and 5 GB per source. Changes apply when the
+  queue next starts. Full-source limits still apply when trimming, and exported
+  video/audio can be much larger than the download.
 
-Harvester does the clerical work of helping you archive a sound or video while the discovery is still fresh. It preserves the source, makes an immediately useful audio file, and keeps provenance beside the
-media. Carousels stay together as one post; long-lived Saved collections can be
-worked through gradually; and everything lands in normal files that can go straight
-into a sampler, DAW, NLE, VJ setup, collage folder, or research notebook. Harvester
-does not try to become your creative environment. It brings interesting material to
-the environment you already use.
+The queue runs up to three acquisition workers, one per source at a time, with
+conversion serialized. It persists jobs locally and keeps provenance in private
+queue records rather than adding metadata sidecars to v2 media folders.
 
-## Install on macOS
+## Harvester + Chromatron
 
-Harvester has two parts: the Firefox extension you click and a small local companion
-that handles downloads and media processing.
+Harvester gathers and names material. **Chromatron** prepares clips for VDMX,
+with its own queue so incoming videos need not replace the clip being worked on.
+In Harvester, choose your Chromatron application under **Options for new
+submissions → Choose Chromatron…**, then use the per-video button or select a
+batch and click **Send selected to Chromatron**.
 
-1. Install [Homebrew](https://brew.sh/) if you do not already have it.
-2. Open Terminal and install Harvester's media tools:
+Handoffs use local MP4 files through macOS, with no upload. A Sent label means
+macOS accepted the handoff; it does not mean Chromatron has finished processing.
+Chromatron is optional—Harvester's output works as ordinary media files.
+Its repository link will be added when the companion project is published.
 
-   ```sh
-   brew install python ffmpeg yt-dlp deno
-   ```
+## Source support and Firefox
 
-3. Download and extract
-   [`harvester-macos-companion-1.0.2.tar.gz`](https://github.com/sxrvys/harvester/releases/download/v1.0.2/harvester-macos-companion-1.0.2.tar.gz).
-   In Terminal, enter the extracted folder and run:
+YouTube and Reddit have dedicated adapters. Individual public media pages and
+direct media file links are attempted through yt-dlp's extractors. Support varies
+by site; playlists, live streams, DRM, login requirements, temporary URLs, or
+unusual players may prevent acquisition. General page harvesting does not borrow
+Firefox cookies. A submitted link authorizes that item, not an account crawl.
 
-   ```sh
-   scripts/install-macos-companion
-   ```
+The **signed Firefox 2.2 extension** offers a name, clip options, **Harvest now**,
+**Add to queue**, and **Open Harvester** for page harvests. These feed the same
+queue as the Dock app. The app can also run independently of Firefox.
 
-4. Download
-   [`harvester-firefox-1.0.2-signed.xpi`](https://github.com/sxrvys/harvester/releases/download/v1.0.2/harvester-firefox-1.0.2-signed.xpi).
-   Do not double-click it in Finder; macOS does not install Firefox extensions.
-5. In Firefox, type `about:addons` in the address bar and press Return.
-6. Click the gear button near **Manage Your Extensions** and choose **Install
-   Add-on From File…**
-7. Select `harvester-firefox-1.0.2-signed.xpi` from your Downloads folder and
-   approve Firefox's installation prompt.
-8. Open Harvester from Firefox's extensions button. If it says **Local companion
-   ready**, you're ready to go.
+**Select visible media**, browser local-file selection, and Instagram/Archival
+Harvest still use the older companion workflow and its Firefox Settings. The
+visible-media picker can transfer readable blobs, but a `blob:` address is not
+always a complete downloadable file. Bringing this picker into the native queue
+is future work. Keep the source tab open for browser capture workflows.
 
-V1.0.2 supports Firefox desktop 142 or newer on macOS.
+## Install from this checkout (macOS)
 
-## Getting started
-
-Open **Settings** first. Choose an output folder with the Finder button, choose the
-audio format you normally want, and leave the Firefox profile path alone unless
-you deliberately use a different Firefox profile. Once the popup says **Local
-companion ready**, pick the workflow that matches what you found:
-
-- **Instagram, YouTube, or Reddit:** Open one post or video and click **Harvest
-  this**.
-- **Another website:** Click **Select visible media**, point at one visible video
-  or audio player, then click **Harvest media**.
-- **A file on your Mac:** Click **Harvest local file** and choose one audio or video
-  file in Finder.
-- **Your Instagram Saved collections:** Open **Archival Harvest**, click **+**, and
-  paste the URL of an Instagram Saved page or collection—or use one already open
-  in Firefox. Give it a name, scan it, and run a small oldest-first batch. Add as
-  many collections as you actually use; overlapping posts are downloaded only
-  once. When a batch finishes, you can review, rename, reveal, or move individual
-  results to Trash.
-- **Output and audio format:** Open **Settings** to choose where files go and which
-  audio preset Harvester should create.
-
-Keep Firefox open while a harvest is running. Please only harvest material you are
-legally allowed to preserve and use.
-
-## If something does not work
-
-- Confirm the popup says **Local companion ready**. If it does not, reinstall the
-  companion and restart Firefox.
-- Keep the source tab open until Harvester reports completion.
-- A visible-media harvest can fail cleanly when a player uses `blob:`/MSE, DRM, an
-  inaccessible frame, an expiring address, or authentication the companion cannot
-  use. Harvester does not inspect network traffic or capture private headers to get
-  around those boundaries.
-- In **Settings**, open the failure log or choose **Prepare bug report**. You can
-  inspect and copy the safe diagnostic text before deciding whether to open a
-  GitHub issue.
-
-## What you get
-
-Each harvest becomes a self-contained folder with:
-
-- the preserved original;
-- a playable video copy when applicable;
-- one audio derivative in your chosen WAV, FLAC, or MP3 preset; and
-- `metadata.json`, containing provenance and useful media facts.
-
-Instagram archival folders have compact, naturally sorted names such as
-`0044__people-dancing`. The Instagram identifier still lives in the
-metadata and private ledger, where it is useful, instead of cluttering Finder.
-
-## Privacy
-
-No Harvester account. No cloud service. No analytics, advertising, telemetry, or
-automatic bug reports. Your settings, archive state, diagnostics, and harvested
-media stay on your Mac. Firefox remains in charge of Firefox authentication.
-
-If something goes wrong, **Settings → Prepare bug report** shows you exactly what
-would be shared. Page addresses are excluded unless you explicitly add a sanitized
-version. Reports never include cookies, credentials, query parameters, media URLs,
-headers, filesystem paths, or raw downloader output. You decide whether to copy the
-report or open a GitHub issue, and nothing is submitted for you.
-
-## A note about Archival Harvest
-
-Archival Harvest exists for one specific job: slowly working through your own
-Instagram Saved pages and collections without losing your place. Each configured
-collection has its own queue and progress, while shared posts use one copy of the
-media on disk.
-
-Scanning starts with the newest saved posts and stops after five consecutive posts
-already known to the private ledger. Harvesting then works oldest-first, one item at
-a time. You choose a batch size from 1–25 and a randomized delay from 10–300 seconds.
-Ordinary failures are not retried during the same batch, and authentication or
-rate-limit trouble stops the run.
-
-Automated access can trigger Instagram restrictions. Larger batches and shorter
-delays increase that risk, so Harvester keeps hard minimums and makes you start each
-batch yourself. You are responsible for deciding whether and how to proceed.
-
-## For contributors and curious programmers
-
-The Firefox extension is plain HTML, CSS, and JavaScript under
-[`extension/firefox`](extension/firefox). It talks through Firefox Native Messaging
-to the Python companion under [`src/harvester`](src/harvester). There is no bundler,
-transpiler, minifier, hosted backend, or Node runtime in the product.
-
-Harvester's boundaries are deliberate:
-
-- one explicitly chosen item per ordinary harvest;
-- no page-wide scraping or network-traffic inspection;
-- no playlists, feeds, profiles, recommendations, or unrelated links;
-- bounded downloads of no more than 10 minutes or 500 MB;
-- no folders, watch directories, or multi-file local conversion; and
-- no silent deletion—archival removal verifies identity, moves one bundle to macOS
-  Trash, and marks it retired so it will not be downloaded again.
-
-The implementation contracts and acceptance records are in [`docs`](docs),
-including the [browser-extension specification](docs/browser-extension-spec.md),
-[visible-media acceptance test](docs/unsupported-site-picker-acceptance.md), and
-[archival acceptance test](docs/archival-harvest-acceptance.md).
-
-### Run the checks
-
-Harvester requires Python 3.11+ and FFmpeg/FFprobe on `PATH`.
+The Firefox extension is Mozilla-signed. The native app is locally ad-hoc signed,
+not Apple Developer ID signed or notarized. Building it requires Apple's command
+line developer tools with Swift and the macOS SDK. Runtime tools are installed
+separately:
 
 ```sh
-python3 -m unittest discover -s tests -v
+brew install python ffmpeg yt-dlp deno
 ```
 
-The release test suite and Mozilla's extension validator must pass before a package
-is published.
-
-### Build the two release packages
+From the project directory:
 
 ```sh
+scripts/install-macos-companion
+scripts/build-v2-app --release
+scripts/install-v2-app
+scripts/install-firefox-v2-bridge
+```
+
+Stop the queue and quit older Harvester app versions before installing. The
+installer preserves an app backup and existing queue. Launch
+`~/Applications/Harvester.app`; use **Choose folder…** to select your media output.
+The native backend is bundled in the app. The bridge connects Firefox to that
+backend while retaining the existing native messaging registration.
+
+Download the [Mozilla-signed Firefox 2.2.0 XPI](releases/v2.2.0/harvester-firefox-2.2.0-signed.xpi)
+(use GitHub's **Download raw file**). In Firefox, open `about:addons`, click the gear
+menu, choose **Install Add-on From File…**, and select the XPI. Remove any temporary
+Harvester development copy from `about:debugging` first. Firefox 142 or newer is
+required. The signed installation survives browser restarts.
+
+## Daily workflow
+
+1. Paste one or more links in the app, optionally followed by `:Name`, or select
+   local files. Firefox can send the current media page instead.
+2. Set optional clip times and export choices before submitting.
+3. **Harvest** submits and starts work. **Add to queue** only queues while idle;
+   an already running queue picks up new items automatically.
+4. Completed bundles contain silent video and separate audio when those streams
+   exist. Audio-only input produces audio only.
+5. Select completed videos and send them to Chromatron, or open the files in
+   whatever creative software you use.
+
+## Privacy and older workflows
+
+No Harvester account, hosted backend, analytics, telemetry, or automatic uploads.
+Downloads contact the source sites you choose. Queue state, provenance, settings,
+and media stay on your Mac. Harvest only material you are authorized to preserve.
+
+Legacy Instagram Saved archival workflows retain their paced collection queues,
+review tools, and metadata conventions; their video may live in the shared
+archive `video/` folder. They are separate from v2's named, self-contained output
+bundles. Existing archives are not silently migrated or deleted.
+
+See [2.2 notes](docs/v2-2.md), [development and architecture](docs/v2-development.md),
+and the [project constitution](PROJECT_CONSTITUTION.md). Licensing is unchanged;
+see [LICENSING.md](LICENSING.md).
+
+## Development checks
+
+Python 3.11+, FFmpeg/FFprobe, and Node (for development checks only) are required:
+
+```sh
+PYTHONPATH=src python3 -m unittest discover -s tests
+node tests/test_popup.cjs
+npx --yes web-ext lint --source-dir extension/firefox
 scripts/build-firefox-extension
-scripts/build-macos-companion
+scripts/build-v2-app --release
 ```
 
-The companion archive includes the installer and Python source, but no user
-settings, authentication material, ledger, diagnostics, or harvested media. See
-[`docs/release-checklist.md`](docs/release-checklist.md) for the complete release
-procedure.
-
-## Why Harvester exists
-
-Interesting source material has a habit of disappearing—or becoming impossible to
-find the moment inspiration strikes. Harvester is a small tool for catching those
-fragments.
+The extension uses plain HTML/CSS/JavaScript; the native app is SwiftUI and the
+backend is Python. No Node runtime is required by the installed product.
+Generated builds, authentication material, queue state, and harvested media are
+excluded from Git. The signed 2.2 XPI is intentionally preserved with its checksum
+under [releases/v2.2.0](releases/v2.2.0).

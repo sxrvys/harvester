@@ -146,7 +146,8 @@ def _thumbnail(bundle: Path | None, records: list[dict[str, Any]]) -> str | None
     if not record or not isinstance(record.get("path"), str):
         return None
     media = (bundle / record["path"]).resolve()
-    if media.parent != bundle.resolve() and bundle.resolve() not in media.parents:
+    archive_root = bundle.parent.resolve()
+    if archive_root not in media.parents and media != archive_root:
         return None
     try:
         completed = subprocess.run([

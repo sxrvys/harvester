@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .generic import DEFAULT_MAX_DURATION_SECONDS, DEFAULT_MAX_SOURCE_BYTES
+from .limits import acquisition_limits
+from .video import DEFAULT_VIDEO_PRESET
 from .audio import DEFAULT_AUDIO_PRESET
 from .instagram import _build_bundle, _media_files
 from .model import HarvestItem
@@ -29,20 +30,19 @@ def harvest_reddit_url(
     browser_profile: Path,
     archive_root: Path,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
 ) -> Path:
     """Acquire media from exactly one explicitly supplied Reddit post URL."""
     match = POST_URL.fullmatch(url)
     if not match:
         raise ValueError("expected one canonical Reddit post URL")
-    if not (browser_profile / "cookies.sqlite").is_file():
-        raise ValueError("browser profile does not contain cookies.sqlite")
 
     post_id = match.group(1).casefold()
     with tempfile.TemporaryDirectory(prefix="harvester-reddit-") as temporary:
         staging = Path(temporary)
         command = [
             "yt-dlp",
-            "--cookies-from-browser", f"firefox:{browser_profile}",
+            "--ignore-config",
             "--no-playlist",
             "--write-info-json",
             "--no-write-playlist-metafiles",
@@ -50,13 +50,14 @@ def harvest_reddit_url(
             "--newline",
             "--retries", "0",
             "--fragment-retries", "0",
-            "--max-filesize", str(DEFAULT_MAX_SOURCE_BYTES),
-            "--match-filter", f"duration <= {DEFAULT_MAX_DURATION_SECONDS} & duration != NA",
+            "--max-filesize", str(acquisition_limits.get().size),
+            "--match-filter", f"duration <= {acquisition_limits.get().duration} & duration != NA",
             "--restrict-filenames",
             "--output", str(staging / "%(id)s.%(ext)s"),
             url,
         ]
-        completed = subprocess.run(command, capture_output=True, text=True)
+        from .progress import download
+        completed = download(command)
         diagnostic = "\n".join((completed.stdout, completed.stderr)).casefold()
         if any(marker in diagnostic for marker in (
             "login required", "sign in", "http error 401", "http error 403",
@@ -70,14 +71,14 @@ def harvest_reddit_url(
             if "filesize" in diagnostic or "file is larger" in diagnostic:
                 raise RedditAcquisitionError("post media exceeds the size limit")
             raise RedditAcquisitionError("single-post media download failed")
-        if media_files[0].stat().st_size > DEFAULT_MAX_SOURCE_BYTES:
+        if media_files[0].stat().st_size > acquisition_limits.get().size:
             raise RedditAcquisitionError("post media exceeds the size limit")
 
         info = _read_info(sorted(staging.glob("*.info.json")))
         duration = info.get("duration")
         if not isinstance(duration, (int, float)) or duration <= 0:
             raise RedditAcquisitionError("post media duration is unavailable")
-        if duration > DEFAULT_MAX_DURATION_SECONDS:
+        if duration > acquisition_limits.get().duration:
             raise RedditAcquisitionError("post media exceeds the duration limit")
         title = info.get("title") if isinstance(info.get("title"), str) else None
         uploader = info.get("uploader") if isinstance(info.get("uploader"), str) else None
@@ -99,7 +100,7 @@ def harvest_reddit_url(
                 "duration": duration,
             },
         )
-        return _build_bundle(item, media_files, archive_root, audio_preset)
+        return _build_bundle(item, media_files, archive_root, audio_preset, video_preset=video_preset)
 
 
 def _read_info(paths: list[Path]) -> dict[str, Any]:

@@ -87,7 +87,7 @@ class NativeHostTests(unittest.TestCase):
                 settings_path=path,
             )
         self.assertEqual(
-            set(response["result"]), {"archive_root", "firefox_profile", "audio_preset", "configured"}
+            set(response["result"]), {"archive_root", "firefox_profile", "audio_preset", "video_preset", "configured"}
         )
         self.assertEqual(response["result"]["audio_preset"], "wav_48k_24")
         self.assertNotIn("cookie", json.dumps(response).lower())
@@ -243,7 +243,7 @@ class NativeHostTests(unittest.TestCase):
             "state": "complete", "source": "local", "output_path": str(destination),
         })
         self.assertNotIn(str(selected), json.dumps(response))
-        harvest.assert_called_once_with(selected, archive, "flac_48k_24")
+        harvest.assert_called_once_with(selected, archive, "flac_48k_24", video_preset="h264_all_keyframes")
 
     def test_local_file_picker_cancellation_is_clean(self) -> None:
         cancelled = subprocess.CompletedProcess([], 1, "", "User canceled")
@@ -420,7 +420,7 @@ class NativeHostTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         harvest.assert_called_once_with(
             "https://cdn.example.com/video.mp4", "https://example.com/demo", archive,
-            audio_preset="wav_48k_24",
+            audio_preset="wav_48k_24", video_preset="h264_all_keyframes",
         )
 
     def test_harvest_url_rejects_unsupported_source_before_configuration(self) -> None:
@@ -494,7 +494,7 @@ class NativeHostTests(unittest.TestCase):
         self.assertEqual(response["result"]["output_path"], str(destination))
         harvest.assert_called_once_with(
             "https://www.instagram.com/p/Example/", profile, archive,
-            audio_preset="wav_48k_24",
+            audio_preset="wav_48k_24", video_preset="h264_all_keyframes",
         )
 
     def test_harvest_url_dispatches_one_youtube_watch_video(self) -> None:
@@ -524,7 +524,7 @@ class NativeHostTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         self.assertEqual(response["result"]["source"], "youtube")
         harvest.assert_called_once_with(
-            "https://www.youtube.com/watch?v=URwmZq70_DU", profile, archive, "wav_48k_24"
+            "https://www.youtube.com/watch?v=URwmZq70_DU", profile, archive, "wav_48k_24", video_preset="h264_all_keyframes"
         )
 
     def test_harvest_url_rejects_youtube_playlist(self) -> None:
@@ -561,7 +561,7 @@ class NativeHostTests(unittest.TestCase):
                     settings_path=settings,
                 )
         self.assertEqual(response["result"]["source"], "reddit")
-        harvest.assert_called_once_with(url, profile, archive, "wav_48k_24")
+        harvest.assert_called_once_with(url, profile, archive, "wav_48k_24", video_preset="h264_all_keyframes")
 
     def test_harvest_url_rejects_reddit_feed(self) -> None:
         with TemporaryDirectory() as temporary, self.assertRaises(ProtocolError) as raised:

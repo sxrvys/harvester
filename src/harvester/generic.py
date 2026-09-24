@@ -14,11 +14,12 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .instagram import _build_bundle, _media_files
+from .video import DEFAULT_VIDEO_PRESET
 from .audio import DEFAULT_AUDIO_PRESET
 from .media import probe
 from .model import HarvestItem
 
-DEFAULT_MAX_DURATION_SECONDS = 10 * 60
+DEFAULT_MAX_DURATION_SECONDS = 60 * 60
 DEFAULT_MAX_SOURCE_BYTES = 500 * 1024 * 1024
 
 
@@ -65,6 +66,7 @@ def harvest_selected_media(
     max_duration_seconds: int = DEFAULT_MAX_DURATION_SECONDS,
     max_source_bytes: int = DEFAULT_MAX_SOURCE_BYTES,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
 ) -> Path:
     """Harvest one explicitly selected ordinary media URL within strict defaults."""
     selected_url = safe_http_url(media_url)
@@ -134,7 +136,7 @@ def harvest_selected_media(
             creator=_text(info.get("uploader")) or _text(info.get("channel")),
             source_metadata={"selection": "visible-media-element"},
         )
-        return _build_bundle(item, [acquired], archive_root, audio_preset)
+        return _build_bundle(item, [acquired], archive_root, audio_preset, video_preset=video_preset)
 
 
 def _preflight(url: str) -> dict[str, Any]:

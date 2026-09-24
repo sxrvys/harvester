@@ -50,6 +50,11 @@ button {
   margin-top: 14px;
 }
 
+label { display: block; margin: 10px 0 4px; }
+input, select { box-sizing: border-box; width: 100%; font: inherit; padding: 7px; }
+details { margin: 12px 0; }
+.hint { font-size: 0.85em; color: GrayText; }
+
 @media (prefers-color-scheme: dark) {
   header img { content: url("icons/glyph-light.svg"); }
 }

@@ -70,6 +70,16 @@ class ArchiveTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 archive.preserve_original(self.item, incoming, 1)
 
+    def test_video_derivative_is_stored_in_archive_video(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            incoming = root / "clip.mp4"
+            incoming.write_bytes(b"video bytes")
+            archive = Archive(root / "archive")
+            record = archive.copy_derivative(self.item, incoming, "clip__video.mp4", "video")
+            self.assertEqual(record["path"], "../video/clip__video.mp4")
+            self.assertTrue((root / "archive" / "video" / "clip__video.mp4").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

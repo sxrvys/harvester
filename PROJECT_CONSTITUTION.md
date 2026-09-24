@@ -61,7 +61,10 @@ harvester must not introduce:
 
 - Stable source identity and deduplication live in inspectable local state, never
   in opaque services.
-- Originals are preserved byte-for-byte before derivatives are created.
+- New harvests retain usable separated video/audio outputs and provenance.
+  Downloaded source media is temporary; user-selected local inputs and existing
+  archived originals are not deleted. This owner-directed policy supersedes
+  the original-retention rule as of 2026-09-23.
 - Open, durable formats are preferred.
 - Operations should be deterministic, auditable, resumable, and reversible when
   practical.

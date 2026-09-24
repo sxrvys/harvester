@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Move existing video derivatives into archive/video and update metadata."""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+ARCHIVE = Path(__file__).resolve().parents[1] / "archive"
+VIDEO_DIR = ARCHIVE / "video"
+MANIFEST = VIDEO_DIR / ".migration-2026-09-17.json"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def destination_for(source: Path, digest: str) -> Path:
+    destination = VIDEO_DIR / source.name
+    if not destination.exists() or sha256(destination) == digest:
+        return destination
+    return VIDEO_DIR / f"{source.stem}__{digest[:12]}{source.suffix}"
+
+
+def main() -> int:
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    entries: list[dict[str, object]] = []
+    for bundle in sorted(p for p in ARCHIVE.iterdir() if p.is_dir() and p.name != "video"):
+        metadata_path = bundle / "metadata.json"
+        video_files = sorted(p for p in bundle.iterdir() if p.is_file() and p.name.endswith("__video" + p.suffix))
+        # The suffix check above is intentionally strict but supports any video extension.
+        video_files = sorted(p for p in bundle.iterdir() if p.is_file() and "__video" in p.stem)
+        if not video_files:
+            continue
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.is_file() else None
+        for source in video_files:
+            digest = sha256(source)
+            destination = destination_for(source, digest)
+            old_rel = source.relative_to(ARCHIVE).as_posix()
+            new_rel = destination.relative_to(ARCHIVE).as_posix()
+            if destination != source:
+                if not destination.exists():
+                    shutil.move(str(source), str(destination))
+                elif sha256(destination) == digest:
+                    source.unlink()
+            if metadata and isinstance(metadata.get("files"), list):
+                for record in metadata["files"]:
+                    if isinstance(record, dict) and record.get("role") == "video" and record.get("path") == source.name:
+                        record["path"] = f"../video/{destination.name}"
+            entries.append({"from": old_rel, "to": new_rel, "sha256": digest, "bytes": destination.stat().st_size})
+        if metadata is not None:
+            temporary = metadata_path.with_suffix(".json.tmp")
+            temporary.write_text(json.dumps(metadata, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+            os.replace(temporary, metadata_path)
+    MANIFEST.write_text(json.dumps({"migrated_at": datetime.now(timezone.utc).isoformat(), "items": entries}, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"moved": len(entries), "video_directory": str(VIDEO_DIR), "manifest": str(MANIFEST)}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .instagram import AcquisitionError, harvest_instagram_url
+from .video import DEFAULT_VIDEO_PRESET
 from .audio import DEFAULT_AUDIO_PRESET
 from .ledger import TERMINAL_STATUSES, identity_key
 
@@ -29,6 +30,7 @@ def harvest_oldest(
     item_ledger_path: Path | None = None,
     manual_review_path: Path | None = None,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
 ) -> dict[str, Any]:
     if count < 1:
         raise ValueError("count must be positive")
@@ -74,7 +76,7 @@ def harvest_oldest(
         try:
             destination = harvest_instagram_url(
                 record["source_url"], firefox_profile, archive_root, record.get("audio"),
-                audio_preset, record.get("saved_order_oldest_first"),
+                audio_preset, record.get("saved_order_oldest_first"), video_preset=video_preset,
             )
         except AcquisitionError as error:
             record["status"] = "failed"

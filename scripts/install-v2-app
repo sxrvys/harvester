@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Install the locally built Mac app without replacing the Firefox companion."""
+
+import fcntl
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+
+project = Path(__file__).resolve().parent.parent
+source = project / "build/Harvester.app"
+if not (source / "Contents/Resources/src/harvester/job_queue.py").is_file():
+    raise SystemExit("Build the app with scripts/build-v2-app --release first")
+subprocess.run(["codesign", "--verify", "--deep", "--strict", str(source)], check=True)
+
+support = Path.home() / "Library/Application Support/harvester"
+applications = Path.home() / "Applications"
+destination = applications / "Harvester.app"
+old_queue = project / "state/v2-queue"
+new_queue = support / "queue-v2"
+
+# Hold the installed queue's supervisor lock throughout an update as well.
+installed_supervisor = None
+if new_queue.exists():
+    installed_supervisor = (new_queue / "runner.lock").open("a")
+    try:
+        fcntl.flock(installed_supervisor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit("Stop the installed Harvester queue before updating; no changes were made")
+
+# Holding this lock ensures the old supervisor and its workers are finished.
+old_queue.mkdir(parents=True, exist_ok=True, mode=0o700)
+with (old_queue / "runner.lock").open("a") as supervisor:
+    try:
+        fcntl.flock(supervisor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit("Stop the queue in Harvester 2 before installing; no changes were made")
+    with (old_queue / "queue.lock").open("a") as journal:
+        fcntl.flock(journal, fcntl.LOCK_EX)
+        if (old_queue / "queue.json").exists():
+            state = json.loads((old_queue / "queue.json").read_text())
+            if state.get("schema_version") != 1:
+                raise SystemExit("Unknown queue format; no changes were made")
+        support.mkdir(parents=True, exist_ok=True, mode=0o700)
+        applications.mkdir(parents=True, exist_ok=True)
+        if not new_queue.exists():
+            with tempfile.TemporaryDirectory(dir=support, prefix=".queue-v2-migration-") as temporary:
+                staged_queue = Path(temporary) / "queue-v2"
+                staged_queue.mkdir(mode=0o700)
+                for name in ("queue.json", "runner-settings.json"):
+                    if (old_queue / name).is_file():
+                        shutil.copy2(old_queue / name, staged_queue / name)
+                if (old_queue / "receipts").is_dir():
+                    shutil.copytree(old_queue / "receipts", staged_queue / "receipts")
+                staged_queue.rename(new_queue)
+        with tempfile.TemporaryDirectory(dir=applications, prefix=".harvester-install-") as temporary:
+            staged_app = Path(temporary) / "Harvester.app"
+            shutil.copytree(source, staged_app)
+            subprocess.run(["codesign", "--verify", "--deep", "--strict", str(staged_app)], check=True)
+            backup = None
+            if destination.exists():
+                backups = support / "app-backups"
+                backups.mkdir(exist_ok=True)
+                backup = backups / ("Harvester-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".app")
+                destination.rename(backup)
+            try:
+                staged_app.rename(destination)
+            except BaseException:
+                if backup:
+                    backup.rename(destination)
+                raise
+
+# Refresh Launch Services after replacing the bundle so pinned Dock items
+# resolve the new bundle artwork instead of retaining a generic placeholder.
+registration = subprocess.run([
+    "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+    "-f", str(destination),
+], capture_output=True)
+if registration.returncode:
+    print("App installed; macOS icon registration refresh was unavailable.")
+
+print(f"Installed: {destination}")
+print(f"Queue: {new_queue}")
+print("Existing media and the Firefox native companion were left unchanged.")

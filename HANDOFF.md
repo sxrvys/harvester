@@ -1,6 +1,10 @@
+> Release checkpoint: signed Firefox 2.2.0 installed permanently; live named 1–3 second trim completed with separate video/audio. Signed XPI retained under releases/v2.2.0. README rewritten for the native queue and credited to Scott and Splice. Chromatron repository URL is pending creation by its worker.
+
+> September 24 update: see [Harvester 2.2](docs/v2-2.md) for public-page queue support, Firefox controls, and adjustable native Settings limits.
+
 # harvester project handoff
 
-Last updated: 2026-08-30
+Last updated: 2026-09-23
 
 Read this document before changing the project. It records decisions and
 acceptance results established with the project owner.
@@ -363,3 +367,184 @@ visibility and licensing remain separate owner decisions.
 - Do not depend on or modify the original RADIO HARVEST repository.
 - The old simulated-radio/demodulation concept is a distant optional idea, not
   V0 scope.
+
+
+## 2026-09-23 separated video/audio output (supersedes earlier retention policy)
+
+Owner requested that new harvests no longer retain original videos. Version 1.0.3
+creates silent H.264/yuv420p MP4 derivatives and separate audio in the existing
+selected audio preset (default 48 kHz/24-bit WAV). All-keyframe H.264 is the default;
+Settings also offers standard H.264. Silent inputs produce video only. Images are
+copied as images. Downloaded sources remain temporary; local input files and
+previously archived originals are untouched. No archive-wide migration runs.
+
+All acquisition adapters and archival batches use the common bundle builder.
+Metadata records the video encoding/probe and `source_retention: derivatives_only`.
+The existing local shared `archive/video` layout is retained. Archive audit now
+recognizes this bounded shared path and the explicit retention policy.
+
+The existing signed 1.0.2 extension works with the new companion and receives the
+new default behavior. Its Settings page does not expose the video selector; that
+requires the updated extension. Older settings writes preserve a saved video
+choice. The 1.0.3 extension build is unsigned until submitted to Mozilla.
+
+Validation: 102 automated tests pass; every extension JavaScript file parses;
+Mozilla web-ext lint reports zero errors, notices, or warnings. Both 1.0.3
+packages are built under dist. The 1.0.3 companion was installed locally and
+returned configured/ready with `h264_all_keyframes` and `wav_48k_24`. An installed-
+runtime test using a synthetic VP9/Opus input verified H.264 video only, PCM audio
+only, every one of 12 frames a keyframe, and no original directory. Live Instagram
+acquisition and VDMX/Chromatron playback have not been re-tested in this session.
+
+
+## 2026-09-23 acquisition repair / 1.0.4
+
+The owner's YouTube URL NCxkLReX_YQ failed with Firefox-cookie access denied by
+macOS, before conversion. Public extraction of the same URL succeeded. Public
+YouTube and Reddit acquisition now omit browser cookies and ignore ambient yt-dlp
+configuration. Instagram still uses its explicitly selected Firefox profile, with
+a specific safe profile-permission error. No authentication fallback/retry added.
+A full public YouTube download and conversion of NCxkLReX_YQ passed, producing
+silent H.264 and separate PCM audio under build/live-source-check.
+
+A selected YouTube blob now routes to the bounded single-video adapter; this works
+with the older signed extension. The updated, unsigned extension also transfers
+readable Blob media through a dedicated native port, 192 KiB chunks, ordered
+acknowledgements, 500 MB size and 10 minute duration limits, private temporary
+storage, and no persisted blob URL. General MSE/DRM capture is not implemented.
+The supplied Archive.org item chi_000108 is stream-only and does not establish
+that general Archive.org blob acquisition works. New browser Blob transfer needs
+Firefox live acceptance and extension signing; do not present it as installed
+in the user's signed extension. The user prioritizes a working public download
+workflow for their current project over broad blob support.
+
+1.0.4 validation: 106 tests pass; Mozilla lint has zero errors/notices/warnings.
+Companion installed locally and native status confirms version 1.0.4, ready and
+configured. Existing signed extension remains in use. Owner can restart Firefox
+and retry Harvest this on the supplied YouTube URL. Instagram acquisition remains
+unverified and subject to Firefox-profile permissions.
+
+## 60-minute limit — companion 1.0.5
+
+The owner requested a 60-minute per-item limit. The shared duration limit is now
+3,600 seconds for YouTube, Reddit, selected media, and local files. Readable Blob
+transfers use that same constant. This supersedes earlier 10-minute defaults and
+the proposed 30-minute ceiling. The source-size limit remains 500 MB. The existing
+signed extension can use the new duration limit without an extension update.
+
+## Harvester 2 development started
+
+Owner approved a native Mac app plus Firefox submission extension. Priorities:
+rapid-fire submissions, a persistent queue, concurrency across sources, optional
+human names, prominent access to video, and media-only output folders. Video and
+audio should be separated; no retained combined original and no metadata sidecar.
+Private queue receipts retain only necessary source/file bookkeeping. Chromatron
+may take responsibility for playback-specific transcoding; default codec decision
+is pending and the working v1 behavior is unchanged.
+
+First development app lives at build/Harvester 2.app (SwiftUI source app/Harvester.swift,
+compiled by scripts/build-v2-app). It relies on this checkout and existing tools;
+no portable packaging or Firefox queue bridge yet. Separate private queue at
+state/v2-queue, separate default output build/v2-output. Installed v1.0.5 native
+companion/extension remain untouched. See docs/v2-plan.md and docs/v2-development.md.
+
+Backend has atomic JSON state, process-isolated workers, one active job per source,
+one converter, source pausing/pacing, deliberate retry/cancel, name collisions,
+and media-only atomic publication with internal receipts. UI accepts multiple pasted
+links and selected local files and provides named jobs, status, cancel/retry, output
+folder selection, Open video and Show bundle. Instagram setup remains CLI-only and
+requires explicit authorization; the app never silently borrows v1 authentication.
+
+113 tests passed after queue implementation, including concurrent submissions and
+real subprocess pipeline tests. App builds with the installed command-line Swift
+tools. Native UI local VP9/Opus smoke test passed: duplicate detected, separate
+H.264-only MP4 and PCM-only WAV, no output JSON, state restored after app restart.
+
+V2 naming update: the single paste box accepts URL:Name independently on each
+line; the separate global name input has been removed. Plain URLs retain title
+suggestions. Scheme/port colons and existing local file paths are preserved;
+URL-internal query colons must be percent-encoded. Duplicate submissions keep
+existing job names. Inline names override the optional CLI --name fallback.
+
+V2 actions clarified: Harvest submits the current draft and starts immediately;
+with an empty draft it starts queued work. Add to queue enqueues without starting
+an idle runner. Both remain available during active harvests, and a running queue
+picks up new jobs automatically. Cmd-Return triggers Harvest. Submissions preserve
+new text entered while the previous draft is being saved.
+
+## Harvester 2 daily-use installation — 2026-09-23
+
+Owner requested making v2 official. Installed and opened the local daily-use app
+at /Users/scott/Applications/Harvester.app, version 2.0.0, build 2, bundle ID
+com.harvester.mac. This is locally ad-hoc signed, not publicly released or notarized.
+The app packages its Python backend but still requires installed Homebrew media
+tools. Firefox remains on the working v1 companion; no extension update needed.
+
+scripts/build-v2-app --release creates build/Harvester.app; scripts/install-v2-app
+installs it and migrates the development queue on first installation. The live
+harvest completed before the idle watcher was stopped and migration performed.
+All four completed jobs and the Archive v2 output preference appeared in the
+installed app. Queue state now lives in ~/Library/Application Support/harvester/queue-v2.
+Old state/v2-queue is retained as a backup, not a second daily-use queue.
+
+Fixed stale status refresh and detection of a separately running queue supervisor.
+116 tests pass; packaged local-media smoke test produces only silent H.264 MP4
+and separate WAV. Installed codesign verification passes. No public release,
+repository push, license change, or Firefox queue integration was performed.
+
+## Firefox-to-v2 bridge installed — 2026-09-23
+
+This supersedes the previous note about Firefox queue integration. App 2.0.1
+(build 3) is installed, and scripts/install-firefox-v2-bridge points the existing
+native launcher at its packaged backend with HARVESTER_V2_APP set. Original
+launcher is preserved as harvester-native-host.before-v2 in Application Support.
+The installed signed Firefox add-on is unchanged. YouTube/Reddit Harvest this
+requests enqueue atomically and open harvester://queue/harvest in the installed
+app, which starts eligible work. Duplicates reuse their job; failed jobs are never
+automatically retried. Instagram, Saved batches, generic selected media, and
+Firefox local-file selection still use the legacy companion route.
+
+All active user harvests completed before the app was updated. Installer now
+holds both installed and development queue supervisor locks during installation.
+Live test through the existing Firefox button opened v2 with “Link already in
+queue” for a completed video and did not create a duplicate download. Test tab
+was closed afterward. The old signed popup still says Harvest complete on handoff;
+updated source wording awaits signed extension distribution. Automated bridge
+tests cover routing without profile access, durable enqueue, deduplication,
+missing app, rejected local path, and launch failure recovery.
+
+## Harvester 2.1 development and local app update — 2026-09-23
+
+Owner authorized preview, progress, Firefox names/queue controls, trimming,
+storage options, and Chromatron handoff. App 2.1.0/build 4 installed at the normal
+~/Applications/Harvester.app path with queue/media preserved. Development app
+closed afterward. See docs/v2-1.md for controls, tests, and remaining boundaries.
+
+Per-job export options are canonicalized and included in deduplication. Legacy
+jobs have implicit empty options. Trimming is post-download, producing aligned
+separate media; no source-limit bypass. Progress hooks are process-local and
+emit only bounded numeric percentages and safe stage labels. No new persisted
+raw downloader output. Optional smaller H.264 CRF23 and FLAC are available;
+default remains all-keyframe H.264 plus 24-bit WAV.
+
+Firefox 2.1 unsigned package built and linted; not installed or signed. Current
+signed extension still works through the backwards-compatible bridge. New native
+enqueue_v2 command supports name, start boolean, and validated export options.
+
+Chromatron is being changed by a separate worker. Do not modify its repository.
+Owner-provided target is /Users/scott/Documents/Chromatron/native-app/dist/Chromatron.app.
+Harvester NSWorkspace handoff returns success, but the first receiving queue test
+was not confirmed (worker still rebuilding). Owner reported two Chromatron
+instances/windows; leave them alone while that worker manages its app.
+
+Chromatron acceptance update: its worker confirmed both warm and cold-start
+handoffs into the Harvester queue after adding an NSApplicationDelegate document-open
+receiver. Harvester sends the existing two-second fixture through its installed
+Send to Chromatron button; incoming clips wait for explicit opening. No blocker remains
+for this tested handoff.
+
+Owner plan for September 24: finish/test Firefox naming, trimming, and Add to
+queue using the built unsigned 2.1 add-on; owner will arrange Mozilla signing,
+then push changes to Git. No signing/push done yet. Harvester app icon now matches
+Chromatron CRT style with a reaper scythe; master app/Assets/HarvesterIcon.png,
+creation prompt in app/Assets/README.md, icon packaging in build-v2-app (build 5).

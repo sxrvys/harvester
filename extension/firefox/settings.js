@@ -5,6 +5,7 @@ const form = document.querySelector("#settings-form");
 const archiveRoot = document.querySelector("#archive-root");
 const firefoxProfile = document.querySelector("#firefox-profile");
 const audioPreset = document.querySelector("#audio-preset");
+const videoPreset = document.querySelector("#video-preset");
 const chooseOutput = document.querySelector("#choose-output");
 const save = document.querySelector("#save");
 const status = document.querySelector("#status");
@@ -31,6 +32,7 @@ async function initialize() {
     archiveRoot.value = response.result.archive_root || "";
     firefoxProfile.value = response.result.firefox_profile || "";
     audioPreset.value = response.result.audio_preset || "wav_48k_24";
+    videoPreset.value = response.result.video_preset || "h264_all_keyframes";
     status.textContent = response.result.configured ? "Settings are valid" : "Choose an output folder";
   } catch (error) {
     status.textContent = "Local companion unavailable";
@@ -46,7 +48,8 @@ form.addEventListener("submit", async (event) => {
     const response = await send("update_settings", {
       archive_root: archiveRoot.value.trim(),
       firefox_profile: firefoxProfile.value.trim(),
-      audio_preset: audioPreset.value
+      audio_preset: audioPreset.value,
+      video_preset: videoPreset.value
     });
     if (response && response.ok) {
       status.textContent = "Settings saved and verified";

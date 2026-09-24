@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from . import __version__
+from .video import VIDEO_PRESETS, DEFAULT_VIDEO_PRESET
 
 
 def main() -> int:
@@ -74,6 +75,8 @@ def main() -> int:
     review.add_argument("--batch", type=Path, required=True)
     review.add_argument("--archive-root", type=Path, default=Path("archive"))
     review.add_argument("--ledger", type=Path, default=Path("state/item-ledger.json"))
+    for command in (instagram, batch):
+        command.add_argument("--video-preset", choices=VIDEO_PRESETS, default=DEFAULT_VIDEO_PRESET)
     arguments = parser.parse_args()
     if arguments.command == "instagram":
         from .instagram import harvest_instagram_url
@@ -82,6 +85,7 @@ def main() -> int:
             arguments.url,
             arguments.firefox_profile,
             arguments.archive_root,
+            video_preset=arguments.video_preset,
         )
         print(destination)
         return 0
@@ -132,6 +136,7 @@ def main() -> int:
                 arguments.max_delay,
                 arguments.item_ledger,
                 arguments.manual_review,
+                video_preset=arguments.video_preset,
             )
         finally:
             if batch_path.exists():

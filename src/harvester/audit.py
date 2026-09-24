@@ -11,7 +11,7 @@ from .media import probe
 
 def audit_archive(root: Path) -> dict[str, Any]:
     issues: list[dict[str, str]] = []
-    bundles = sorted(path for path in root.iterdir() if path.is_dir()) if root.is_dir() else []
+    bundles = sorted(path for path in root.iterdir() if path.is_dir() and not (path.name == "video" and not (path / "metadata.json").exists())) if root.is_dir() else []
     identities: dict[tuple[str, str], Path] = {}
     audited_files = 0
 
@@ -57,7 +57,12 @@ def audit_archive(root: Path) -> dict[str, Any]:
                 continue
             relative = record["path"]
             pure = PurePosixPath(relative)
-            if pure.is_absolute() or ".." in pure.parts:
+            shared_video = (
+                record.get("role") == "video" and len(pure.parts) == 3
+                and pure.parts[:2] == ("..", "video")
+                and (bundle / relative).resolve().parent == (root.resolve() / "video")
+            )
+            if pure.is_absolute() or (".." in pure.parts and not shared_video):
                 _issue(issues, "error", bundle, "unsafe_path", relative)
                 continue
             if relative in recorded_paths:
@@ -102,7 +107,7 @@ def audit_archive(root: Path) -> dict[str, Any]:
                         _issue(issues, "error", bundle, "audio_preset", f"{relative}: missing or unknown preset")
                     elif actual != expected[preset]:
                         _issue(issues, "error", bundle, "audio_contract", f"{relative}: {actual}")
-        if original_count == 0:
+        if original_count == 0 and metadata.get("source_retention") != "derivatives_only":
             _issue(issues, "error", bundle, "missing_original", "no original file record")
 
         actual_paths = {

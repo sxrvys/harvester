@@ -9,7 +9,7 @@
   <body>
     <main>
       <header><img src="icons/glyph-dark.svg" alt=""><h1>harvester settings</h1></header>
-      <p>Choose where Harvester saves media and how it prepares audio.</p>
+      <p>Choose where Harvester saves media and how it prepares audio and video.</p>
       <form id="settings-form">
         <label for="archive-root">Output folder</label>
         <div class="path-row">
@@ -30,7 +30,13 @@
           <option value="mp3_320">MP3 — 320 kbps</option>
           <option value="mp3_192">MP3 — 192 kbps</option>
         </select>
-        <p>The selected preset applies to future bundles. Originals are always preserved.</p>
+        <label for="video-preset">Video derivative</label>
+        <select id="video-preset" name="video_preset">
+          <option value="h264">Silent H.264 MP4 — standard</option>
+          <option value="h264_all_keyframes">Silent H.264 MP4 — all keyframes (default)</option>
+        </select>
+        <p>All keyframes improves frame-by-frame seeking and scrubbing, with larger files. Video has no audio track; audio is saved separately.</p>
+        <p>The selected presets apply to future bundles. Downloaded originals are not retained. Existing archived originals are unchanged.</p>
         <button id="save" type="submit">Save settings</button>
       </form>
       <p id="status" role="status">Loading local settings…</p>

@@ -109,7 +109,7 @@ async function runHarvest(url) {
     if (response && response.ok) {
       await setHarvestState({
         state: "complete",
-        message: "Harvest complete",
+        message: response.result && response.result.state === "queued" ? "Sent to Harvester 2 — follow progress in the app" : "Harvest complete",
         output_path: response.result && response.result.output_path
       });
     } else {
@@ -136,7 +136,7 @@ async function runMediaHarvest(mediaUrl, pageUrl) {
     if (response && response.ok) {
       await setHarvestState({
         state: "complete",
-        message: "Selected media harvest complete",
+        message: response.result && response.result.state === "queued" ? "Sent to Harvester 2 — follow progress in the app" : "Selected media harvest complete",
         output_path: response.result && response.result.output_path
       });
     } else {
@@ -349,6 +349,11 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     void runHarvest(message.url);
     return {accepted: true};
   }
+  if (message.command === "enqueue_v2") {
+    return sendNative("enqueue_v2", {url: message.url, name: message.name || "",
+      start: message.start, options: message.options || {}});
+  }
+  if (message.command === "open_v2") return sendNative("open_v2", {});
   if (message.command === "start_picker") {
     if (anyOperationRunning()) {
       return {accepted: false, state: harvestState};
@@ -429,4 +434,84 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === "loading") {
     void cancelPickerForTab(tabId, "Media selection cancelled because the page changed");
   }
+});
+
+
+// A dedicated port owns exactly one selected Blob transfer. Backpressure keeps
+// only one small chunk in flight; closing the page disconnects the native host.
+browser.runtime.onConnect.addListener((port) => {
+  if (port.name !== "harvester-blob") return;
+  const tab = port.sender && port.sender.tab;
+  if (!tab || tab.id !== pickerTabId || harvestState.state !== "selecting") {
+    port.disconnect();
+    return;
+  }
+  stopPickerTimeout();
+  pickerTabId = null;
+  void browser.tabs.sendMessage(tab.id, {command: "stop_picker"}).catch(() => undefined);
+  void setHarvestState({state: "running", message: "Transferring selected media… Keep the page open."});
+  let native;
+  let pending = false;
+  let finished = false;
+  let started = false;
+  let timer;
+  let command;
+  function resetTimeout() {
+    clearTimeout(timer);
+    timer = setTimeout(() => fail("Media transfer timed out"), command === "blob_finish" ? 1800000 : 120000);
+  }
+  function fail(message) {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    void setHarvestState({state: "failed", message});
+    void recordFirefoxFailure("harvest_blob", "blob_transfer_failed", message, tab.id);
+    if (native) native.disconnect();
+    port.disconnect();
+  }
+  try {
+    native = browser.runtime.connectNative(NATIVE_APPLICATION);
+  } catch (error) {
+    fail("Local companion unavailable");
+    return;
+  }
+  resetTimeout();
+  native.onMessage.addListener((response) => {
+    if (!pending || finished) return;
+    pending = false;
+    resetTimeout();
+    port.postMessage(response);
+    if (!response.ok) {
+      fail(response.error && response.error.message || "Selected blob failed safely");
+    } else if (command === "blob_finish") {
+      finished = true;
+      clearTimeout(timer);
+      void setHarvestState({state: "complete", message: "Selected media harvest complete",
+        output_path: response.result.output_path});
+      native.disconnect();
+    }
+  });
+  native.onDisconnect.addListener(() => {
+    if (!finished) fail("Local companion disconnected during media transfer");
+  });
+  port.onMessage.addListener((message) => {
+    if (finished) return;
+    if (pending || !message || !["blob_begin", "blob_chunk", "blob_finish"].includes(message.command) ||
+        (!started && message.command !== "blob_begin") ||
+        (started && message.command === "blob_begin")) {
+      fail("Invalid media transfer sequence");
+      return;
+    }
+    command = message.command;
+    started = true;
+    pending = true;
+    resetTimeout();
+    const payload = command === "blob_begin"
+      ? {size: message.payload && message.payload.size, page_url: tab.url}
+      : message.payload;
+    native.postMessage({version: 1, request_id: requestId(), command, payload});
+  });
+  port.onDisconnect.addListener(() => {
+    if (!finished) fail("Media transfer interrupted because the page or connection closed");
+  });
 });

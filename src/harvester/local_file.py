@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .archive import _sha256
+from .video import DEFAULT_VIDEO_PRESET
 from .audio import DEFAULT_AUDIO_PRESET
 from .generic import DEFAULT_MAX_DURATION_SECONDS, DEFAULT_MAX_SOURCE_BYTES
 from .instagram import _build_bundle
@@ -24,6 +25,7 @@ def harvest_local_file(
     audio_preset: str = DEFAULT_AUDIO_PRESET,
     max_duration_seconds: int = DEFAULT_MAX_DURATION_SECONDS,
     max_source_bytes: int = DEFAULT_MAX_SOURCE_BYTES,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
 ) -> Path:
     """Ingest exactly one local file without retaining its original path."""
     source = source.expanduser().resolve()
@@ -65,4 +67,4 @@ def harvest_local_file(
             "duration": duration,
         },
     )
-    return _build_bundle(item, [source], archive_root, audio_preset)
+    return _build_bundle(item, [source], archive_root, audio_preset, video_preset=video_preset)

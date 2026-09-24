@@ -79,27 +79,52 @@ class Archive:
         }
 
     def copy_derivative(self, item: HarvestItem, source: Path, name: str, role: str) -> dict[str, Any]:
-        destination = self.item_directory(item) / name
+        # Video derivatives are intentionally browseable in one archive-level
+        # directory.  Keep the bundle metadata as the source of truth by
+        # recording a safe path relative to the bundle (../video/...).
+        if role == "video":
+            destination = self.root / "video" / Path(name).name
+            if destination.exists() and _sha256(destination) != _sha256(source):
+                base = destination.stem
+                suffix = destination.suffix
+                candidate = self.root / "video" / f"{base}__{item.source_id}{suffix}"
+                counter = 2
+                while candidate.exists() and _sha256(candidate) != _sha256(source):
+                    candidate = self.root / "video" / f"{base}__{item.source_id}-{counter}{suffix}"
+                    counter += 1
+                destination = candidate
+            recorded_path = Path("..") / "video" / destination.name
+        else:
+            destination = self.item_directory(item) / name
+            recorded_path = destination.relative_to(self.item_directory(item))
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.exists() and _sha256(destination) != _sha256(source):
             raise FileExistsError(f"refusing to replace different derivative: {destination}")
         if not destination.exists():
             shutil.copy2(source, destination)
         return {
-            "path": destination.relative_to(self.item_directory(item)).as_posix(),
+            "path": recorded_path.as_posix(),
             "role": role,
             "bytes": destination.stat().st_size,
             "sha256": _sha256(destination),
         }
 
-    def write_metadata(self, item: HarvestItem, files: list[dict[str, Any]], tools: dict[str, str]) -> Path:
+    def write_metadata(
+        self, item: HarvestItem, files: list[dict[str, Any]], tools: dict[str, str],
+        source_retention: str | None = None,
+    ) -> Path:
         item_dir = self.item_directory(item)
         item_dir.mkdir(parents=True, exist_ok=True)
         preserved: dict[str, Any] = {}
         existing_path = item_dir / "metadata.json"
         if existing_path.is_file():
             try:
-                existing_item = json.loads(existing_path.read_text(encoding="utf-8")).get("item", {})
+                existing = json.loads(existing_path.read_text(encoding="utf-8"))
+                existing_item = existing.get("item", {})
+                # Reharvesting an older bundle does not silently discard its original records.
+                if source_retention == "derivatives_only":
+                    files = [*files, *(record for record in existing.get("files", [])
+                                      if record.get("role") == "original")]
                 preserved = {
                     key: existing_item[key]
                     for key in ("manual_stem", "manual_title", "manual_creator")
@@ -114,6 +139,8 @@ class Archive:
             "files": files,
             "tools": tools,
         }
+        if source_retention is not None:
+            payload["source_retention"] = source_retention
         destination = item_dir / "metadata.json"
         _atomic_json(destination, payload)
         return destination

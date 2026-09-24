@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+BUILD_KIND=${1:-development}
+case "$BUILD_KIND" in
+  development) APP_ROOT="$PROJECT_ROOT/build/Harvester 2.app" ;;
+  --release) APP_ROOT="$PROJECT_ROOT/build/Harvester.app" ;;
+  *) printf '%s\n' 'Usage: scripts/build-v2-app [--release]' >&2; exit 1 ;;
+esac
+mkdir -p "$APP_ROOT/Contents/MacOS" "$PROJECT_ROOT/build/swift-module-cache"
+ICONSET="$PROJECT_ROOT/build/Harvester.iconset"
+mkdir -p "$ICONSET" "$APP_ROOT/Contents/Resources"
+for SIZE in 16 32 128 256 512; do
+  sips -z "$SIZE" "$SIZE" "$PROJECT_ROOT/app/Assets/HarvesterIcon.png" --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
+  DOUBLE=$((SIZE * 2))
+  sips -z "$DOUBLE" "$DOUBLE" "$PROJECT_ROOT/app/Assets/HarvesterIcon.png" --out "$ICONSET/icon_${SIZE}x${SIZE}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP_ROOT/Contents/Resources/Harvester.icns"
+swiftc -parse-as-library -swift-version 5 -O \
+  -module-cache-path "$PROJECT_ROOT/build/swift-module-cache" \
+  -framework SwiftUI -framework AppKit -framework AVKit \
+  "$PROJECT_ROOT/app/Harvester.swift" -o "$APP_ROOT/Contents/MacOS/Harvester"
+python3 - "$APP_ROOT" "$PROJECT_ROOT" "$BUILD_KIND" <<'PY'
+import pathlib, plistlib, shutil, sys
+app, root = pathlib.Path(sys.argv[1]), sys.argv[2]
+release = sys.argv[3] == '--release'
+info = {
+    'CFBundleName': 'Harvester' if release else 'Harvester 2',
+    'CFBundleDisplayName': 'Harvester' if release else 'Harvester 2',
+    'CFBundleIdentifier': 'com.harvester.mac' if release else 'com.harvester.v2.development',
+    'CFBundleExecutable': 'Harvester', 'CFBundlePackageType': 'APPL',
+    'CFBundleShortVersionString': '2.2.0', 'CFBundleVersion': '8',
+    'CFBundleIconFile': 'Harvester.icns',
+    'NSHighResolutionCapable': True, 'LSMinimumSystemVersion': '13.0',
+}
+if release:
+    info['CFBundleURLTypes'] = [{'CFBundleURLName': 'com.harvester.queue', 'CFBundleURLSchemes': ['harvester']}]
+    resources = app / 'Contents/Resources'
+    package = resources / 'src/harvester'
+    package.mkdir(parents=True, exist_ok=True)
+    (resources / 'scripts').mkdir(exist_ok=True)
+    for source in (pathlib.Path(root) / 'src/harvester').glob('*.py'):
+        shutil.copy2(source, package / source.name)
+    shutil.copy2(pathlib.Path(root) / 'scripts/harvester-v2', resources / 'scripts/harvester-v2')
+    for name in ('README.md', 'LICENSING.md', 'PROJECT_CONSTITUTION.md'):
+        shutil.copy2(pathlib.Path(root) / name, resources / name)
+else:
+    info['HarvesterDevelopmentRoot'] = root
+with (app / 'Contents/Info.plist').open('wb') as handle:
+    plistlib.dump(info, handle)
+PY
+codesign --force --sign - "$APP_ROOT"
+printf '%s\n' "$APP_ROOT"

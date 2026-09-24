@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .archive import Archive
+from .video import DEFAULT_VIDEO_PRESET, get_video_preset, transcode_video
 from .audio import DEFAULT_AUDIO_PRESET, extract_audio, get_audio_preset
 from .media import has_audio, probe
 from .model import HarvestItem
@@ -34,6 +35,7 @@ def harvest_instagram_url(
     platform_audio: dict[str, Any] | None = None,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
     archival_order: int | None = None,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
 ) -> Path:
     """Acquire exactly one supplied Instagram URL through one explicit Firefox profile."""
 
@@ -48,7 +50,7 @@ def harvest_instagram_url(
     with tempfile.TemporaryDirectory(prefix="harvest-instagram-") as temporary:
         staging = Path(temporary)
         command = [
-            "yt-dlp",
+            "yt-dlp", "--ignore-config",
             "--cookies-from-browser", f"firefox:{browser_profile}",
             "--write-info-json",
             "--no-write-playlist-metafiles",
@@ -62,8 +64,13 @@ def harvest_instagram_url(
             "--output", str(staging / "%(playlist_index|1)02d_%(id)s.%(ext)s"),
             url,
         ]
-        completed = subprocess.run(command, capture_output=True, text=True)
+        from .progress import download
+        completed = download(command)
         diagnostic = "\n".join((completed.stdout, completed.stderr)).lower()
+        if completed.returncode != 0 and "cookies.sqlite" in diagnostic and any(
+            marker in diagnostic for marker in ("operation not permitted", "permission denied")
+        ):
+            raise AcquisitionError("Firefox profile access denied")
         if completed.returncode != 0 and any(marker in diagnostic for marker in AUTH_FAILURE_MARKERS):
             raise AcquisitionError(f"authentication/rate-limit stop; yt-dlp exited {completed.returncode}")
 
@@ -99,7 +106,7 @@ def harvest_instagram_url(
             },
         )
         directory_name = archival_bundle_name(archival_order, title, creator) if archival_order else None
-        return _build_bundle(item, media_files, archive_root, audio_preset, directory_name)
+        return _build_bundle(item, media_files, archive_root, audio_preset, directory_name, video_preset=video_preset)
 
 
 def _read_info(paths: list[Path]) -> dict[str, Any]:
@@ -153,18 +160,27 @@ def _build_bundle(
     archive_root: Path,
     audio_preset: str = DEFAULT_AUDIO_PRESET,
     directory_name: str | None = None,
+    video_preset: str = DEFAULT_VIDEO_PRESET,
+) -> Path:
+    from .processing import processing_scope
+    with processing_scope.get()():
+        return _write_bundle(item, media_files, archive_root, audio_preset, directory_name, video_preset)
+
+
+def _write_bundle(
+    item: HarvestItem, media_files: list[Path], archive_root: Path,
+    audio_preset: str, directory_name: str | None, video_preset: str,
 ) -> Path:
     preset = get_audio_preset(audio_preset)
+    video_encoding = get_video_preset(video_preset)
     archive = Archive(archive_root, directory_name)
     records: list[dict[str, Any]] = []
     inspected: list[tuple[Path, dict[str, Any], str]] = []
-    for index, source in enumerate(media_files, start=1):
-        original = archive.preserve_original(item, source, index, len(media_files))
+    for source in media_files:
         facts = probe(source)
         kind = _media_kind(facts)
-        original["media_kind"] = kind
-        original["probe"] = _metadata_probe(facts)
-        records.append(original)
+        if kind == "unknown":
+            raise ValueError("source has no supported media stream")
         inspected.append((source, facts, kind))
 
     video_count = sum(kind == "video" for _, _, kind in inspected)
@@ -174,8 +190,14 @@ def _build_bundle(
     for source, facts, kind in inspected:
         if kind == "video":
             video_index += 1
-            name = archive.asset_relative_path(item, "video", source.suffix, video_index, video_count).as_posix()
-            records.append(archive.copy_derivative(item, source, name, "video"))
+            name = archive.asset_relative_path(item, "video", ".mp4", video_index, video_count).as_posix()
+            with tempfile.TemporaryDirectory(prefix="harvester-video-") as temporary:
+                converted = Path(temporary) / "video.mp4"
+                transcode_video(source, converted, video_preset)
+                record = archive.copy_derivative(item, converted, name, "video")
+                record["probe"] = _metadata_probe(probe(converted))
+                record["encoding"] = dict(video_encoding)
+                records.append(record)
         elif kind == "image":
             image_index += 1
             name = archive.asset_relative_path(item, "image", source.suffix, image_index, image_count).as_posix()
@@ -199,7 +221,7 @@ def _build_bundle(
         "yt-dlp": _tool_version("yt-dlp", "--version"),
         "ffmpeg": _tool_version("ffmpeg", "-version").splitlines()[0],
     }
-    archive.write_metadata(item, records, tools)
+    archive.write_metadata(item, records, tools, source_retention="derivatives_only")
     return archive.item_directory(item)
 
 

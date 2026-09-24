@@ -50,6 +50,8 @@ class RedditTests(unittest.TestCase):
         self.assertEqual(result, destination)
         command = invoked.call_args.args[0]
         self.assertIn("--no-playlist", command)
+        self.assertIn("--ignore-config", command)
+        self.assertNotIn("--cookies-from-browser", command)
         self.assertEqual(command[command.index("--retries") + 1], "0")
         self.assertEqual(command[command.index("--fragment-retries") + 1], "0")
         item = build.call_args.args[0]

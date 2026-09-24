@@ -167,10 +167,75 @@
     return null;
   }
 
-  function select(element) {
-    const mediaUrl = ordinarySources(element)[0];
+  let selectionStarted = false;
+  async function select(element) {
+    if (selectionStarted) return;
+    selectionStarted = true;
+    const sources = ordinarySources(element);
+    const mediaUrl = sources.find((url) => /^https?:/.test(url)) || sources[0];
     cleanup();
-    browser.runtime.sendMessage({command: "picker_selection", media_url: mediaUrl || null});
+    if (!mediaUrl || !mediaUrl.startsWith("blob:") || element.mediaKeys) {
+      browser.runtime.sendMessage({command: "picker_selection", media_url: mediaUrl || null});
+      return;
+    }
+    // Only fetch the user-selected object URL. MSE object URLs are not readable
+    // Blobs; let the companion try a supported single-page adapter in that case.
+    let response;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      response = await fetch(mediaUrl, {signal: controller.signal});
+      if (!response.ok || !response.body) throw new Error("Unreadable blob");
+    } catch (error) {
+      browser.runtime.sendMessage({command: "picker_selection", media_url: mediaUrl});
+      return;
+    } finally {
+      clearTimeout(timeout);
+    }
+    const port = browser.runtime.connect({name: "harvester-blob"});
+    let pending = null;
+    port.onMessage.addListener((message) => {
+      if (!pending) return;
+      const current = pending;
+      pending = null;
+      if (message.ok) current.resolve(message.result);
+      else current.reject(new Error("Blob transfer failed"));
+    });
+    port.onDisconnect.addListener(() => {
+      if (pending) pending.reject(new Error("Blob connection closed"));
+      pending = null;
+    });
+    function send(command, payload) {
+      return new Promise((resolve, reject) => {
+        pending = {resolve, reject};
+        port.postMessage({command, payload});
+      });
+    }
+    const reader = response.body.getReader();
+    try {
+      const size = Number(response.headers.get("Content-Length"));
+      await send("blob_begin", {size});
+      let offset = 0;
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        for (let start = 0; start < value.length; start += 192 * 1024) {
+          const chunk = value.subarray(start, start + 192 * 1024);
+          let binary = "";
+          for (let index = 0; index < chunk.length; index += 8192) {
+            binary += String.fromCharCode(...chunk.subarray(index, index + 8192));
+          }
+          await send("blob_chunk", {offset, data: btoa(binary)});
+          offset += chunk.length;
+        }
+      }
+      await send("blob_finish", {});
+    } catch (error) {
+      // Background owns the visible failure state and disconnect cleanup.
+    } finally {
+      await reader.cancel().catch(() => undefined);
+      port.disconnect();
+    }
   }
 
   function choose(event) {

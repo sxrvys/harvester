@@ -55,10 +55,13 @@ def extract_audio(source: Path, destination: Path, preset_key: str = DEFAULT_AUD
     if destination.suffix.casefold() != preset.extension:
         raise ValueError("audio derivative extension does not match preset")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    from .export_options import trim_arguments
+    from .progress import encode
+    trim, duration = trim_arguments(source)
+    encode(
         [
             "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-            "-i", str(source), "-vn", *preset.ffmpeg_args, str(destination),
+            "-i", str(source), *trim, "-vn", *preset.ffmpeg_args, str(destination),
         ],
-        check=True,
+        source, "Extracting audio", duration,
     )

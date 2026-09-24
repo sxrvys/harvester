@@ -12,6 +12,10 @@ let currentUrl = null;
 let currentTabId = null;
 let unsupportedPage = false;
 let companionConfigured = false;
+let v2Queue = false;
+let submitting = false;
+let pageUrl = null;
+const addQueue = document.querySelector("#add-queue");
 
 function isSupportedUrl(url) {
   try {
@@ -47,6 +51,7 @@ async function initialize() {
     currentTabId = tabs[0] && tabs[0].id;
     if (url) {
       const parsed = new URL(url);
+      if (["http:", "https:"].includes(parsed.protocol)) pageUrl = url;
       page.textContent = displayUrl(parsed);
       page.title = url;
       if (isSupportedUrl(url)) {
@@ -59,12 +64,25 @@ async function initialize() {
 
     const response = await browser.runtime.sendMessage({command: "get_companion_status"});
     if (response && response.ok) {
-      const configured = Boolean(response.result && response.result.configured);
+      v2Queue = Boolean(response.result && response.result.v2_queue) && currentUrl !== null
+        && /^(www\.)?(youtube\.com|reddit\.com)$/.test(new URL(currentUrl).hostname);
+      if (response.result && response.result.v2_public_pages && pageUrl
+          && !/(^|\.)instagram\.com$/.test(new URL(pageUrl).hostname)) {
+        currentUrl = pageUrl;
+        v2Queue = true;
+      }
+      document.querySelector("#queue-controls").hidden = !v2Queue;
+      addQueue.hidden = !v2Queue;
+      if (v2Queue) harvest.textContent = "Harvest now";
+      if (v2Queue) openOutput.textContent = "Open Harvester";
+      document.querySelector("#picker-note").hidden = !(v2Queue && unsupportedPage);
+      const configured = v2Queue || Boolean(response.result && response.result.configured);
       companionConfigured = configured;
       const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
-      harvest.disabled = !configured || !currentUrl || ["running", "selecting"].includes(operation.state);
+      harvest.disabled = !configured || !currentUrl || (!v2Queue && ["running", "selecting"].includes(operation.state));
       selectMedia.disabled = !configured || !unsupportedPage || ["running", "selecting"].includes(operation.state);
-      status.textContent = configured
+      status.textContent = v2Queue ? "Ready to try this page. Progress and Send to Chromatron are in Harvester."
+        : configured
         ? operation.message
         : "Configure output and Firefox profile in local settings";
     } else {
@@ -87,6 +105,7 @@ async function initialize() {
 
 harvest.addEventListener("click", async () => {
   if (!currentUrl || harvest.disabled) return;
+  if (v2Queue) { await submitToQueue(true); return; }
   harvest.disabled = true;
   status.textContent = "Harvesting… Keep Firefox open.";
   try {
@@ -106,6 +125,43 @@ harvest.addEventListener("click", async () => {
   }
 });
 
+async function submitToQueue(start) {
+  if (submitting || !currentUrl) return;
+  const options = {video_preset: document.querySelector("#video-preset").value,
+    audio_preset: document.querySelector("#audio-preset").value};
+  try {
+    for (const key of ["start", "end"]) {
+      const value = document.querySelector(`#clip-${key}`).value.trim();
+      if (value) options[key] = parseTime(value);
+    }
+    if ((options.start || 0) >= 21600 || (options.end !== undefined &&
+        (options.end <= (options.start || 0) || options.end > 21600))) throw new Error("range");
+  } catch (error) {
+    status.textContent = "Use seconds or HH:MM:SS, with end after start and within 6 hours.";
+    return;
+  }
+  submitting = true;
+  harvest.disabled = true;
+  addQueue.disabled = true;
+  status.textContent = "Sending to Harvester 2…";
+  try {
+    const response = await browser.runtime.sendMessage({command: "enqueue_v2", url: currentUrl,
+      name: document.querySelector("#bundle-name").value.trim(), start, options});
+    status.textContent = response && response.ok
+      ? (response.result.duplicate ? "Already in Harvester 2 — check the app" : start ? "Sent to Harvester 2 — follow progress in the app" : "Added to queue. A running queue picks it up automatically.")
+      : response && response.error && response.error.message || "Could not add the video";
+  } catch (error) { status.textContent = "Harvester companion unavailable"; }
+  finally { submitting = false; harvest.disabled = false; addQueue.disabled = false; }
+}
+function parseTime(value) {
+  const parts = value.split(":");
+  if (parts.length > 3 || parts.some(part => !/^\d+(\.\d+)?$/.test(part))) throw new Error("time");
+  const numbers = parts.map(Number);
+  if (numbers.some(n => !Number.isFinite(n)) || numbers.slice(1).some(n => n >= 60)) throw new Error("time");
+  return numbers.reduce((total, n) => total * 60 + n, 0);
+}
+addQueue.addEventListener("click", () => submitToQueue(false));
+
 settings.addEventListener("click", () => browser.runtime.openOptionsPage());
 archival.addEventListener("click", () => browser.tabs.create({url: browser.runtime.getURL("archive.html")}));
 localFile.addEventListener("click", async () => {
@@ -124,14 +180,14 @@ selectMedia.addEventListener("click", async () => {
   }
 });
 openOutput.addEventListener("click", async () => {
-  const response = await browser.runtime.sendMessage({command: "open_output_folder"});
+  const response = await browser.runtime.sendMessage({command: v2Queue ? "open_v2" : "open_output_folder"});
   if (!response || !response.ok) {
     status.textContent = response && response.error && response.error.message || "Output folder unavailable";
   }
 });
 
 setInterval(async () => {
-  if (!companionConfigured) return;
+  if (!companionConfigured || v2Queue) return;
   try {
     const operation = await browser.runtime.sendMessage({command: "get_harvest_state"});
     status.textContent = operation.message;

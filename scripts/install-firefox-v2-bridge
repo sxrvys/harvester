@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Point the existing Firefox native registration at the packaged v2 backend."""
+import os
+import shlex
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+support = Path.home() / "Library/Application Support/harvester"
+app = Path.home() / "Applications/Harvester.app"
+resources = app / "Contents/Resources"
+launcher = support / "harvester-native-host"
+backup = support / "harvester-native-host.before-v2"
+if not launcher.is_file() or not (resources / "src/harvester/browser_bridge.py").is_file():
+    raise SystemExit("Install the Firefox companion and updated Harvester app first")
+subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
+if not backup.exists():
+    shutil.copy2(launcher, backup)
+lines = ["#!/bin/sh", "set -eu",
+         'export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"',
+         "export PYTHONDONTWRITEBYTECODE=1",
+         "export PYTHONPATH=" + shlex.quote(str(resources / "src")),
+         "export HARVESTER_STATE_ROOT=" + shlex.quote(str(support / "state")),
+         "export HARVESTER_V2_APP=" + shlex.quote(str(app)),
+         "exec python3 -m harvester.native_host"]
+fd, temporary = tempfile.mkstemp(dir=support, prefix=".bridge-")
+try:
+    with os.fdopen(fd, "w") as stream:
+        stream.write("\n".join(lines) + "\n")
+    os.chmod(temporary, 0o755)
+    os.replace(temporary, launcher)
+finally:
+    Path(temporary).unlink(missing_ok=True)
+print("Firefox YouTube/Reddit submissions now use Harvester 2. Other workflows remain on the companion.")
+print(f"Previous launcher preserved at {backup}")

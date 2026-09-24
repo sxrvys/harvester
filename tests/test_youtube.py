@@ -33,7 +33,7 @@ class YouTubeTests(unittest.TestCase):
                 staging = Path(command[command.index("--output") + 1]).parent
                 (staging / "URwmZq70_DU.mp4").write_bytes(b"media")
                 (staging / "URwmZq70_DU.info.json").write_text(json.dumps({
-                    "id": "URwmZq70_DU", "duration": 487, "title": "Training Film",
+                    "id": "URwmZq70_DU", "duration": 3600, "title": "Training Film",
                     "uploader": "US National Archives", "extractor": "youtube",
                 }), encoding="utf-8")
                 return subprocess.CompletedProcess(command, 0, "", "")
@@ -49,6 +49,8 @@ class YouTubeTests(unittest.TestCase):
         self.assertEqual(result, destination)
         command = invoked.call_args.args[0]
         self.assertIn("--no-playlist", command)
+        self.assertIn("--ignore-config", command)
+        self.assertNotIn("--cookies-from-browser", command)
         self.assertNotIn("--max-downloads", command)
         self.assertEqual(command[command.index("--fragment-retries") + 1], "0")
         item = build.call_args.args[0]
@@ -68,7 +70,7 @@ class YouTubeTests(unittest.TestCase):
                 staging = Path(command[command.index("--output") + 1]).parent
                 (staging / "URwmZq70_DU.mp4").write_bytes(b"media")
                 (staging / "URwmZq70_DU.info.json").write_text(
-                    json.dumps({"duration": 601}), encoding="utf-8"
+                    json.dumps({"duration": 3601}), encoding="utf-8"
                 )
                 return subprocess.CompletedProcess(command, 0, "", "")
 

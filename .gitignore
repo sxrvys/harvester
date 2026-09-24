@@ -16,3 +16,6 @@ cookies*.txt
 *.cookies
 .env
 .env.*
+
+# Local v2 output selected during development.
+/Archive v2/

@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 from . import __version__
 from .audio import AUDIO_PRESETS, DEFAULT_AUDIO_PRESET
+from .video import VIDEO_PRESETS, DEFAULT_VIDEO_PRESET
 
 PROTOCOL_VERSION = 1
 MAX_MESSAGE_BYTES = 1024 * 1024
@@ -97,6 +98,7 @@ def _public_settings(settings: dict[str, object]) -> dict[str, object]:
         "archive_root": settings.get("archive_root"),
         "firefox_profile": profile,
         "audio_preset": _audio_preset(settings),
+        "video_preset": _video_preset(settings),
         "configured": _settings_configured(effective),
     }
 
@@ -137,10 +139,9 @@ def _detect_firefox_profile() -> Path | None:
 
 
 def _update_settings(path: Path, payload: dict[str, object], request_id: str) -> dict[str, object]:
-    if set(payload) not in (
-        {"archive_root", "firefox_profile"},
-        {"archive_root", "firefox_profile", "audio_preset"},
-    ):
+    if not {"archive_root", "firefox_profile"} <= set(payload) or not set(payload) <= {
+        "archive_root", "firefox_profile", "audio_preset", "video_preset"
+    }:
         raise ProtocolError(
             "invalid_request",
             "update_settings requires output and Firefox profile paths",
@@ -149,6 +150,10 @@ def _update_settings(path: Path, payload: dict[str, object], request_id: str) ->
     archive_value = payload.get("archive_root")
     profile_value = payload.get("firefox_profile")
     audio_preset = payload.get("audio_preset", DEFAULT_AUDIO_PRESET)
+    # Older signed extensions omit this field; preserve the user's video choice.
+    video_preset = payload.get("video_preset", _video_preset(_read_settings(path)))
+    if not isinstance(video_preset, str) or video_preset not in VIDEO_PRESETS:
+        raise ProtocolError("invalid_request", "Choose a supported video preset", request_id)
     if not all(isinstance(value, str) and value.strip() and len(value) <= 4096 for value in (archive_value, profile_value)):
         raise ProtocolError("invalid_request", "Settings paths must be non-empty strings", request_id)
     if not isinstance(audio_preset, str) or audio_preset not in AUDIO_PRESETS:
@@ -164,6 +169,7 @@ def _update_settings(path: Path, payload: dict[str, object], request_id: str) ->
         "archive_root": str(archive_root),
         "firefox_profile": str(firefox_profile),
         "audio_preset": audio_preset,
+        "video_preset": video_preset,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=path.parent)
@@ -189,6 +195,11 @@ def _configured_path(settings: dict[str, object], key: str, request_id: str) -> 
 def _audio_preset(settings: dict[str, object]) -> str:
     value = settings.get("audio_preset", DEFAULT_AUDIO_PRESET)
     return value if isinstance(value, str) and value in AUDIO_PRESETS else DEFAULT_AUDIO_PRESET
+
+
+def _video_preset(settings: dict[str, object]) -> str:
+    value = settings.get("video_preset", DEFAULT_VIDEO_PRESET)
+    return value if isinstance(value, str) and value in VIDEO_PRESETS else DEFAULT_VIDEO_PRESET
 
 
 def _archival_root() -> Path:
@@ -511,7 +522,7 @@ def _harvest_archival_batch(
             batch = harvest_oldest(
                 paths["index"], batch_path, profile, archive_root, count,
                 minimum, maximum, paths["ledger"], paths["manual_review"],
-                _audio_preset(settings),
+                _audio_preset(settings), video_preset=_video_preset(settings),
             )
         finally:
             if batch_path.is_file():
@@ -554,6 +565,17 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
         raise ProtocolError("invalid_url", "URL is invalid", request_id) from None
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ProtocolError("invalid_url", "Only HTTP(S) URLs are accepted", request_id)
+    v2_app = os.environ.get("HARVESTER_V2_APP")
+    if v2_app and parsed.hostname.casefold() in {
+        "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be",
+        "reddit.com", "www.reddit.com", "old.reddit.com",
+    }:
+        from .browser_bridge import submit
+        try:
+            return submit(url, Path(v2_app), Path.home() / "Library/Application Support/harvester/queue-v2")
+        except ProtocolError as error:
+            error.request_id = request_id
+            raise
     hostname = parsed.hostname.casefold()
     from .instagram import POST_URL
     from .reddit import POST_URL as REDDIT_POST_URL
@@ -579,21 +601,21 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
     audio_preset = _audio_preset(settings)
     if not archive_root.is_dir():
         raise ProtocolError("output_unavailable", "The configured output folder is unavailable", request_id)
-    if not (firefox_profile / "cookies.sqlite").is_file():
+    if source == "instagram" and not (firefox_profile / "cookies.sqlite").is_file():
         raise ProtocolError("output_unavailable", "The configured Firefox profile is unavailable", request_id)
 
     try:
         if source == "instagram":
             from .instagram import harvest_instagram_url
             destination = harvest_instagram_url(
-                url, firefox_profile, archive_root, audio_preset=audio_preset
+                url, firefox_profile, archive_root, audio_preset=audio_preset, video_preset=_video_preset(settings)
             )
         elif source == "youtube":
             from .youtube import harvest_youtube_url
-            destination = harvest_youtube_url(url, firefox_profile, archive_root, audio_preset)
+            destination = harvest_youtube_url(url, firefox_profile, archive_root, audio_preset, video_preset=_video_preset(settings))
         else:
             from .reddit import harvest_reddit_url
-            destination = harvest_reddit_url(url, firefox_profile, archive_root, audio_preset)
+            destination = harvest_reddit_url(url, firefox_profile, archive_root, audio_preset, video_preset=_video_preset(settings))
     except ValueError:
         raise ProtocolError("invalid_url", f"Use one canonical {source.title()} URL", request_id) from None
     except Exception as error:
@@ -603,7 +625,13 @@ def _harvest_url(payload: dict[str, object], request_id: str, settings_path: Pat
         if not isinstance(error, (AcquisitionError, RedditAcquisitionError, YouTubeAcquisitionError)):
             raise ProtocolError("processing_failed", "Harvest processing failed safely", request_id) from None
         message = str(error).casefold()
-        code = "authentication_stop" if "authentication" in message or "rate-limit" in message else "acquisition_failed"
+        if "firefox profile access denied" in message:
+            raise ProtocolError(
+                "profile_access_denied",
+                "macOS blocked access to the Firefox profile. Check Firefox file-access permissions in System Settings > Privacy & Security, then restart Firefox.",
+                request_id,
+            ) from None
+        code = "authentication_stop" if any(marker in message for marker in ("authentication", "rate-limit", "authorization", "access control")) else "acquisition_failed"
         safe_message = f"{source.title()} authorization stopped the harvest" if code == "authentication_stop" else f"{source.title()} acquisition failed"
         raise ProtocolError(code, safe_message, request_id) from None
     return {"state": "complete", "source": source, "output_path": str(destination)}
@@ -796,7 +824,7 @@ def _harvest_local_file(request_id: str, settings_path: Path) -> dict[str, objec
     archive_root = _configured_path(settings, "archive_root", request_id)
     from .local_file import LocalFileError, harvest_local_file
     try:
-        destination = harvest_local_file(selected, archive_root, _audio_preset(settings))
+        destination = harvest_local_file(selected, archive_root, _audio_preset(settings), video_preset=_video_preset(settings))
     except LocalFileError as error:
         raise ProtocolError(error.code, error.message, request_id) from None
     except Exception:
@@ -810,7 +838,16 @@ def _harvest_media_url(payload: dict[str, object], request_id: str, settings_pat
     media_url = payload.get("media_url")
     page_url = payload.get("page_url")
     if isinstance(media_url, str) and media_url.startswith("blob:"):
-        raise ProtocolError("unsupported_media", "Blob and Media Source media are unsupported", request_id)
+        # A single supported post can be resolved by its adapter even when its
+        # browser player uses MSE. Never pass blob URLs to a native downloader.
+        from .youtube import WATCH_URL
+        if isinstance(page_url, str) and WATCH_URL.fullmatch(page_url):
+            return _harvest_url({"url": page_url}, request_id, settings_path)
+        raise ProtocolError(
+            "unsupported_media",
+            "This streaming blob is not a downloadable file. Use Harvest this on a supported site, or select a direct media file.",
+            request_id,
+        )
     settings = _read_settings(settings_path)
     archive_root = _configured_path(settings, "archive_root", request_id)
     audio_preset = _audio_preset(settings)
@@ -820,7 +857,7 @@ def _harvest_media_url(payload: dict[str, object], request_id: str, settings_pat
 
     try:
         destination = harvest_selected_media(
-            media_url, page_url, archive_root, audio_preset=audio_preset
+            media_url, page_url, archive_root, audio_preset=audio_preset, video_preset=_video_preset(settings)
         )
     except GenericMediaError as error:
         raise ProtocolError(error.code, error.message, request_id) from None
@@ -830,7 +867,7 @@ def _harvest_media_url(payload: dict[str, object], request_id: str, settings_pat
 
 
 def handle_message(
-    message: dict[str, object], *, settings_path: Path | None = None
+    message: dict[str, object], *, settings_path: Path | None = None, blob_session=None
 ) -> dict[str, object]:
     request_id = message.get("request_id")
     if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
@@ -843,6 +880,32 @@ def handle_message(
     payload = message.get("payload")
     if not isinstance(payload, dict):
         raise ProtocolError("invalid_request", "payload must be an object", request_id)
+
+    if command in {"blob_begin", "blob_chunk", "blob_finish", "blob_abort"}:
+        if blob_session is None:
+            raise ProtocolError("invalid_request", "Blob transfer requires a persistent connection", request_id)
+        from .generic import GenericMediaError
+        try:
+            if command == "blob_begin":
+                result = blob_session.begin(payload)
+            elif command == "blob_chunk":
+                result = blob_session.append(payload)
+            elif command == "blob_abort":
+                blob_session.close()
+                result = {"state": "cancelled"}
+            else:
+                settings = _read_settings(settings_path or _settings_path())
+                result = blob_session.finish(
+                    _configured_path(settings, "archive_root", request_id),
+                    _audio_preset(settings), _video_preset(settings),
+                )
+        except GenericMediaError as error:
+            blob_session.close()
+            raise ProtocolError(error.code, error.message, request_id) from None
+        except Exception:
+            blob_session.close()
+            raise ProtocolError("processing_failed", "Selected blob processing failed safely", request_id) from None
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
 
     if command == "get_status":
         if payload:
@@ -858,6 +921,8 @@ def handle_message(
                 "application": "harvester",
                 "application_version": __version__,
                 "configured": configured,
+                "v2_queue": bool(os.environ.get("HARVESTER_V2_APP")),
+                "v2_public_pages": bool(os.environ.get("HARVESTER_V2_APP")),
             },
         }
     if command == "get_settings":
@@ -1020,6 +1085,33 @@ def handle_message(
             "ok": True,
             "result": result,
         }
+    if command == "open_v2":
+        app = os.environ.get("HARVESTER_V2_APP")
+        if payload or not app or not (Path(app) / "Contents/MacOS/Harvester").is_file():
+            raise ProtocolError("app_unavailable", "Install the Harvester app and Firefox bridge first", request_id)
+        try:
+            subprocess.run(["/usr/bin/open", "-a", app, "harvester://queue/show"], check=True, timeout=15,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.SubprocessError):
+            raise ProtocolError("app_unavailable", "Could not open Harvester", request_id) from None
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": {"state": "opened"}}
+    if command == "enqueue_v2":
+        app = os.environ.get("HARVESTER_V2_APP")
+        if not app:
+            raise ProtocolError("app_unavailable", "Install the Harvester 2 Firefox bridge first", request_id)
+        if (set(payload) - {"url", "name", "start", "options"}
+                or not isinstance(payload.get("url"), str) or len(payload["url"]) > 4096
+                or not isinstance(payload.get("start", True), bool)
+                or not isinstance(payload.get("name", ""), str) or len(payload.get("name", "")) > 200):
+            raise ProtocolError("invalid_request", "Invalid queue submission", request_id)
+        from .browser_bridge import submit
+        try:
+            result = submit(payload["url"], Path(app), Path.home() / "Library/Application Support/harvester/queue-v2",
+                            name=payload.get("name"), start=payload.get("start", True), options=payload.get("options"))
+        except ProtocolError as error:
+            error.request_id = request_id
+            raise
+        return {"version": PROTOCOL_VERSION, "request_id": request_id, "ok": True, "result": result}
     if command == "harvest_url":
         result = _harvest_url(payload, request_id, settings_path or _settings_path())
         return {
@@ -1040,7 +1132,7 @@ def error_response(error: ProtocolError) -> dict[str, object]:
     }
 
 
-def main() -> int:
+def _serve(blob_session) -> int:
     input_stream = sys.stdin.buffer
     output_stream = sys.stdout.buffer
     while True:
@@ -1049,7 +1141,7 @@ def main() -> int:
             message = read_message(input_stream)
             if message is None:
                 return 0
-            response = handle_message(message)
+            response = handle_message(message, blob_session=blob_session)
         except ProtocolError as error:
             try:
                 _record_diagnostic(error, message.get("command") if isinstance(message, dict) else None)
@@ -1066,6 +1158,17 @@ def main() -> int:
                 pass
             response = error_response(error)
         write_message(output_stream, response)
+
+
+def main() -> int:
+    from .blob import BlobSession
+    session = BlobSession()
+    import signal
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    try:
+        return _serve(session)
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":
