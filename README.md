@@ -35,8 +35,8 @@ queue records rather than adding metadata sidecars to v2 media folders.
 
 ## Harvester + Chromatron
 
-Harvester gathers and names material. **Chromatron** prepares clips for VDMX,
-with its own queue so incoming videos need not replace the clip being worked on.
+Harvester gathers and names material. [**Chromatron**](https://github.com/sxrvys/chromatron)
+prepares clips for VDMX, with its own queue so incoming videos need not replace the clip being worked on.
 In Harvester, choose your Chromatron application under **Options for new
 submissions → Choose Chromatron…**, then use the per-video button or select a
 batch and click **Send selected to Chromatron**.
@@ -44,7 +44,6 @@ batch and click **Send selected to Chromatron**.
 Handoffs use local MP4 files through macOS, with no upload. A Sent label means
 macOS accepted the handoff; it does not mean Chromatron has finished processing.
 Chromatron is optional—Harvester's output works as ordinary media files.
-Its repository link will be added when the companion project is published.
 
 ## Source support and Firefox
 
