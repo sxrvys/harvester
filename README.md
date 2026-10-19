@@ -18,8 +18,8 @@ on Harvester. One human, one coding agent, a lot of strange footage.
 
 **[Download Harvester from GitHub Releases](https://github.com/sxrvys/harvester/releases/latest)**
 
-The current app release is **2.4.1**. Choose
-**Harvester-2.4.1-macos-universal.dmg** under **Assets**, not the Source code ZIP or
+The current app release is **2.4.2**. Choose
+**Harvester-2.4.2-macos-arm64.dmg** under **Assets**, not the Source code ZIP or
 tar.gz. You do not need a GitHub account, a compiler, or a separate editor.
 
 1. Open the downloaded `.dmg` and drag **Harvester.app** into **Applications**.
@@ -27,25 +27,19 @@ tar.gz. You do not need a GitHub account, a compiler, or a separate editor.
    blocks it, review **System Settings → Privacy & Security** for the option to
    approve opening it. Only approve a copy you trust. Managed Macs may require
    help from an administrator.
-3. If Harvester reports missing tools, click **Install Required Tools…**. A guided
-   Terminal window installs them through Homebrew. Follow its prompts, including
-   any Mac-password or confirmation request. **You do not need to type commands.**
-4. Return to Harvester when setup finishes. It checks again; you can also use
-   **Check Again** in **Harvester → Settings** (`⌘,`).
-5. In **Video library**, click **Choose library…** and select a folder on your Mac
-   or an external drive. This is where Harvester stores your collection. Allow
-   access if macOS asks for permission to use that drive.
+3. Harvester includes its required tools. No Homebrew, Terminal commands, or
+   separate dependency installation is needed.
+4. Choose **Keep my library on this Mac** to use `Movies/Harvester`, or
+   **Choose another location…** for an external drive or an existing library.
+   Allow drive access if macOS asks.
 
-Setup installs missing Python 3.11+, FFmpeg/FFprobe, yt-dlp, and Deno, and reuses
-working tools already installed. It needs internet access and free disk space;
-Homebrew may also require administrator approval or Apple Command Line Tools.
-First setup can take several minutes.
+**Compatibility:** 2.4.2 requires an **Apple silicon Mac (M-series)** and macOS 13
+or later. Python, FFmpeg/FFprobe, yt-dlp, and Deno are included privately inside
+the app. This build does not use or install Homebrew tools. Settings checks the
+included tools; if one fails, retry or download a fresh app copy.
 
-**Compatibility:** the app requires macOS 13 or later and includes Apple silicon
-and Intel binaries. It has been tested on Apple silicon. Intel execution and a
-fresh Homebrew installation on a clean Mac have not yet been qualified. Homebrew
-has limited support on older macOS and Intel; see its
-[installation requirements](https://docs.brew.sh/Installation).
+Intel users can use the [previous 2.4.1 release](https://github.com/sxrvys/harvester/releases/tag/v2.4.1),
+which needs separate tools. The bundled 2.4.2 release is Apple silicon only.
 
 The app is locally ad-hoc signed, **not Developer ID signed or notarized**. There
 is no Windows release yet. The Firefox extension is optional and is not needed
@@ -165,22 +159,27 @@ retried indefinitely.
 
 ### Optional Firefox extension
 
-The Mozilla-signed extension can submit the page you are browsing. It requires a
-separately installed native messaging companion/bridge; **the DMG's tool setup
-does not install that bridge**. Existing bridge installations are left intact.
-For a new user, pasting links into the Mac app is the simplest complete workflow.
+The **Mozilla-signed Firefox 2.2.0 extension is included** with the app and in
+the disk image's Firefox folder. Firefox itself must already be installed;
+version 142 or later is required.
 
-The [Firefox 2.2.0 package and instructions](releases/v2.2.0/README.md) describe
-that separate integration. Some browser capture and Instagram archival features
-still use the older companion workflow rather than the native app queue. Keep
-the source tab open for browser capture. A `blob:` URL is not always a complete
-video file. Older extension documentation may describe earlier app versions.
+1. Install Harvester in Applications and open that copy.
+2. In Harvester Settings click **Connect Firefox…** and approve the local bridge
+   registration. Any previous registration is backed up.
+3. Click **Show Firefox Add-on**. In Firefox open `about:addons`, click the gear,
+   choose **Install Add-on From File…**, and select the included `.xpi`.
+4. Approve Firefox's prompt. Restart Firefox if it does not connect immediately.
+
+Reconnect from Settings if you move the app later. No Terminal command or separate
+companion installer is needed for this bridge. Pasting links into Harvester still
+works without Firefox. The signed add-on is preserved unchanged; its older browser
+capture/Instagram archival workflows are separate from the native video queue.
 
 ## If something does not work
 
 | Problem | Try this |
 | --- | --- |
-| Missing tools or interrupted setup | Return to Settings, use **Check Again**, and retry setup if needed. Check the Terminal setup window for the actual error. |
+| Bundled tool check fails | In Settings use **Check Again**. If it still fails, download a fresh 2.4.2 app and report the message; no separate tool installer is needed. |
 | Library drive missing or inaccessible | Reconnect it, allow macOS drive access if requested, then click **Refresh**. Check the displayed library path. |
 | Cannot add media or start harvesting | Choose a library folder first. |
 | Download exceeds limits | Review the full source duration/size and the limits in Settings, even if you requested a short range. |
@@ -192,7 +191,7 @@ video file. Older extension documentation may describe earlier app versions.
 
 No Harvester account, hosted library, analytics, telemetry, or automatic uploads.
 Media and organization stay on your drives. Downloads contact the sources you
-choose; tool installation contacts Homebrew and its package sources; an explicit
+choose; an explicit
 update check contacts GitHub without sending library data.
 
 New URL harvests produce H.264 MP4 video with sound when available. Downloaded
@@ -206,11 +205,17 @@ to preserve.
 The Mac UI uses SwiftUI; its backend uses Python. The extension uses plain
 HTML/CSS/JavaScript. Node is not required by the installed app.
 
-**The 2.4.1 binary was built from a working-tree snapshot that is newer than the
+**The 2.4.2 binary was built from a working-tree snapshot that is newer than the
 public source checkout.** GitHub's automatic Source code archives do not reproduce
 this release. Use the DMG to run the current app. The release includes
 `BUILD-MANIFEST.json` with build provenance and file fingerprints, `SHA256SUMS.txt`,
 and `INSTALL.txt`.
+
+The release also provides corresponding FFmpeg/x264 source and build instructions
+in `Harvester-2.4.2-third-party-sources.tar.gz`. These separate tools are GPLv2 or
+later; their licenses are not replaced by Harvester’s own licensing. Python, Deno,
+yt-dlp, and package notices are retained inside the app’s runtime folder. See
+[third-party release materials](https://github.com/sxrvys/harvester/releases/tag/v2.4.2).
 
 The existing [development notes](docs/v2-development.md) and
 [2.2 notes](docs/v2-2.md) describe earlier source workflows; they are not the
