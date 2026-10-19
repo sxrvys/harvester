@@ -18,8 +18,8 @@ on Harvester. One human, one coding agent, a lot of strange footage.
 
 **[Download Harvester from GitHub Releases](https://github.com/sxrvys/harvester/releases/latest)**
 
-The current app release is **2.4.2**. Choose
-**Harvester-2.4.2-macos-arm64.dmg** under **Assets**, not the Source code ZIP or
+The current app release is **2.4.3**. Choose
+**Harvester-2.4.3-macos-arm64.dmg** under **Assets**, not the Source code ZIP or
 tar.gz. You do not need a GitHub account, a compiler, or a separate editor.
 
 1. Open the downloaded `.dmg` and drag **Harvester.app** into **Applications**.
@@ -33,13 +33,13 @@ tar.gz. You do not need a GitHub account, a compiler, or a separate editor.
    **Choose another location…** for an external drive or an existing library.
    Allow drive access if macOS asks.
 
-**Compatibility:** 2.4.2 requires an **Apple silicon Mac (M-series)** and macOS 13
+**Compatibility:** 2.4.3 requires an **Apple silicon Mac (M-series)** and macOS 13
 or later. Python, FFmpeg/FFprobe, yt-dlp, and Deno are included privately inside
 the app. This build does not use or install Homebrew tools. Settings checks the
 included tools; if one fails, retry or download a fresh app copy.
 
 Intel users can use the [previous 2.4.1 release](https://github.com/sxrvys/harvester/releases/tag/v2.4.1),
-which needs separate tools. The bundled 2.4.2 release is Apple silicon only.
+which needs separate tools. The bundled 2.4.3 release is Apple silicon only.
 
 The app is locally ad-hoc signed, **not Developer ID signed or notarized**. There
 is no Windows release yet. The Firefox extension is optional and is not needed
@@ -179,7 +179,7 @@ capture/Instagram archival workflows are separate from the native video queue.
 
 | Problem | Try this |
 | --- | --- |
-| Bundled tool check fails | In Settings use **Check Again**. If it still fails, download a fresh 2.4.2 app and report the message; no separate tool installer is needed. |
+| Bundled tool check fails | In Settings use **Check Again**. If it still fails, download a fresh 2.4.3 app and report the message; no separate tool installer is needed. |
 | Library drive missing or inaccessible | Reconnect it, allow macOS drive access if requested, then click **Refresh**. Check the displayed library path. |
 | Cannot add media or start harvesting | Choose a library folder first. |
 | Download exceeds limits | Review the full source duration/size and the limits in Settings, even if you requested a short range. |
@@ -205,17 +205,17 @@ to preserve.
 The Mac UI uses SwiftUI; its backend uses Python. The extension uses plain
 HTML/CSS/JavaScript. Node is not required by the installed app.
 
-**The 2.4.2 binary was built from a working-tree snapshot that is newer than the
+**The 2.4.3 binary was built from a working-tree snapshot that is newer than the
 public source checkout.** GitHub's automatic Source code archives do not reproduce
 this release. Use the DMG to run the current app. The release includes
 `BUILD-MANIFEST.json` with build provenance and file fingerprints, `SHA256SUMS.txt`,
 and `INSTALL.txt`.
 
 The release also provides corresponding FFmpeg/x264 source and build instructions
-in `Harvester-2.4.2-third-party-sources.tar.gz`. These separate tools are GPLv2 or
+in `Harvester-2.4.3-third-party-sources.tar.gz`. These separate tools are GPLv2 or
 later; their licenses are not replaced by Harvester’s own licensing. Python, Deno,
 yt-dlp, and package notices are retained inside the app’s runtime folder. See
-[third-party release materials](https://github.com/sxrvys/harvester/releases/tag/v2.4.2).
+[third-party release materials](https://github.com/sxrvys/harvester/releases/tag/v2.4.3).
 
 The existing [development notes](docs/v2-development.md) and
 [2.2 notes](docs/v2-2.md) describe earlier source workflows; they are not the
